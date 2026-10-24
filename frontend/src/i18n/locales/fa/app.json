@@ -1,0 +1,114 @@
+{
+  "nav": {
+    "markets": {
+      "label": "بازارها",
+      "short": "بازارها"
+    },
+    "watchlist": {
+      "label": "دیده‌بان",
+      "short": "دیده‌بان"
+    },
+    "analyze": {
+      "label": "تحلیل",
+      "short": "تحلیل"
+    },
+    "trade": {
+      "label": "معامله",
+      "short": "معامله"
+    },
+    "portfolio": {
+      "label": "سبد دارایی",
+      "short": "سبد"
+    },
+    "compare": {
+      "label": "مقایسه",
+      "short": "مقایسه"
+    },
+    "scheduler": {
+      "label": "زمان‌بندی",
+      "short": "زمان‌بندی"
+    },
+    "bot": {
+      "label": "کنسول ربات",
+      "short": "ربات"
+    },
+    "settings": {
+      "label": "تنظیمات",
+      "short": "تنظیمات"
+    },
+    "account": {
+      "label": "تنظیمات حساب",
+      "short": "حساب"
+    },
+    "admin": {
+      "label": "مدیریت",
+      "short": "مدیریت"
+    },
+    "security": {
+      "label": "امنیت",
+      "short": "امنیت"
+    }
+  },
+  "mainNav": "منوی اصلی",
+  "more": "بیشتر",
+  "lightMode": "حالت روشن",
+  "darkMode": "حالت تیره",
+  "offline": "MarketMyna فعلاً به سرورش دسترسی ندارد. در حال اتصال دوباره…",
+  "user": {
+    "title": "{{name}} · {{email}} - تنظیمات حساب",
+    "plan": "طرح {{plan}}"
+  },
+  "status": {
+    "api": {
+      "checking": "API در حال بررسی",
+      "online": "API برخط",
+      "offline": "API قطع"
+    },
+    "schedule": {
+      "unknown": "زمان‌بندی نامشخص",
+      "active": "زمان‌بندی فعال",
+      "off": "زمان‌بندی خاموش"
+    }
+  },
+  "area": {
+    "label": "بخش",
+    "trader": "معامله‌گر",
+    "investor": "سرمایه‌گذار",
+    "named": "بخش {{area}}",
+    "youAreIn": "شما در نمای {{area}} هستید",
+    "switchTo": "رفتن به نمای {{area}}",
+    "switch": "تغییر"
+  },
+  "time": {
+    "never": "هرگز",
+    "justNow": "همین الان"
+  },
+  "live": {
+    "prices": "قیمت‌ها: {{sources}}",
+    "live": "زنده",
+    "noTrading": "الان معامله‌ای نیست",
+    "closed": "بازار بسته است",
+    "connecting": "در حال اتصال…",
+    "updatedNow": "همین الان به‌روز شد",
+    "updatedAgo_one": "{{count}} ثانیه پیش به‌روز شد",
+    "updatedAgo_other": "{{count}} ثانیه پیش به‌روز شد",
+    "lastTraded": "آخرین قیمت‌های معامله‌شده"
+  },
+  "export": {
+    "button": "خروجی",
+    "nothing": "هنوز چیزی برای خروجی نیست",
+    "failed": "خروجی ناموفق بود: {{error}}",
+    "hint": {
+      "xlsx": "یک برگه برای هر جدول",
+      "csv": "متن ساده، برای هر صفحه‌گسترده",
+      "pdf": "مناسب چاپ یا اشتراک‌گذاری"
+    }
+  },
+  "watch": {
+    "watch": "دنبال کردن",
+    "watching": "در حال دنبال کردن",
+    "inList": "در دیده‌بان شماست - برای تغییر کلیک کنید",
+    "add": "افزودن به دیده‌بان",
+    "addTo": "افزودن {{symbol}} به…"
+  }
+}

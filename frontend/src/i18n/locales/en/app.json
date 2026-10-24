@@ -1,0 +1,70 @@
+{
+  "nav": {
+    "markets": { "label": "Markets", "short": "Markets" },
+    "watchlist": { "label": "Watchlist", "short": "Watchlist" },
+    "analyze": { "label": "Analyze", "short": "Analyze" },
+    "trade": { "label": "Trade", "short": "Trade" },
+    "portfolio": { "label": "Portfolio", "short": "Portfolio" },
+    "compare": { "label": "Compare", "short": "Compare" },
+    "scheduler": { "label": "Scheduler", "short": "Schedule" },
+    "bot": { "label": "Bot console", "short": "Bot" },
+    "settings": { "label": "Settings", "short": "Settings" },
+    "account": { "label": "Account settings", "short": "Account" },
+    "admin": { "label": "Admin", "short": "Admin" },
+    "security": { "label": "Security", "short": "Security" }
+  },
+  "mainNav": "Main",
+  "more": "More",
+  "lightMode": "Light mode",
+  "darkMode": "Dark mode",
+  "offline": "MarketMyna can’t reach its server right now. Reconnecting…",
+  "user": {
+    "title": "{{name}} · {{email}} - Account settings",
+    "plan": "{{plan}} plan"
+  },
+  "status": {
+    "api": { "checking": "API checking", "online": "API online", "offline": "API offline" },
+    "schedule": { "unknown": "Schedule unknown", "active": "Schedule active", "off": "Schedule off" }
+  },
+  "area": {
+    "label": "Area",
+    "trader": "Trader",
+    "investor": "Investor",
+    "named": "{{area}} area",
+    "youAreIn": "You are in the {{area}} view",
+    "switchTo": "Switch to the {{area}} view",
+    "switch": "Switch"
+  },
+  "time": {
+    "never": "never",
+    "justNow": "just now"
+  },
+  "live": {
+    "prices": "Prices: {{sources}}",
+    "live": "Live",
+    "noTrading": "No trading right now",
+    "closed": "Market closed",
+    "connecting": "connecting…",
+    "updatedNow": "updated just now",
+    "updatedAgo_one": "updated {{count}}s ago",
+    "updatedAgo_other": "updated {{count}}s ago",
+    "lastTraded": "last traded prices"
+  },
+  "export": {
+    "button": "Export",
+    "nothing": "Nothing to export yet",
+    "failed": "Export failed: {{error}}",
+    "hint": {
+      "xlsx": "One sheet per table",
+      "csv": "Plain text, any spreadsheet",
+      "pdf": "Formatted for printing or sharing"
+    }
+  },
+  "watch": {
+    "watch": "Watch",
+    "watching": "Watching",
+    "inList": "In your watchlist - click to change",
+    "add": "Add to watchlist",
+    "addTo": "Add {{symbol}} to…"
+  }
+}

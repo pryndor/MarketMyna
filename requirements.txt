@@ -1,0 +1,28 @@
+# MarketMyna - Investment Analysis Platform
+# Core dependencies
+
+# Data Analysis
+pandas>=2.0.0
+openpyxl>=3.1.0          # fund-house monthly portfolio files (.xlsx)
+xlrd>=2.0.1              # older .xls portfolio files
+numpy>=1.24.0
+
+# Market Data APIs
+yfinance>=0.2.30          # US & Global stocks
+ccxt>=4.0.0               # Crypto exchanges
+requests>=2.31.0          # HTTP requests
+
+# Portfolio Optimization
+scipy>=1.11.0             # Optimization algorithms
+
+# Database
+sqlalchemy>=2.0.0         # ORM
+
+# PDF
+pymupdf>=1.23.0           # PDF invoices
+casparser>=1.4,<2         # CAMS / KFintech CAS parser used by the web import
+
+# Utilities
+pydantic>=2.0.0           # Data validation
+playwright>=1.45          # Social sentiment scraping (then: python -m playwright install chromium)
+pypinyin>=0.51            # Chinese -> pinyin fallback for China A names

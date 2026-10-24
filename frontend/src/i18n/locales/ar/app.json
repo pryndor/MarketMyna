@@ -1,0 +1,118 @@
+{
+  "nav": {
+    "markets": {
+      "label": "الأسواق",
+      "short": "الأسواق"
+    },
+    "watchlist": {
+      "label": "قائمة المتابعة",
+      "short": "المتابعة"
+    },
+    "analyze": {
+      "label": "التحليل",
+      "short": "التحليل"
+    },
+    "trade": {
+      "label": "التداول",
+      "short": "التداول"
+    },
+    "portfolio": {
+      "label": "المحفظة",
+      "short": "المحفظة"
+    },
+    "compare": {
+      "label": "المقارنة",
+      "short": "مقارنة"
+    },
+    "scheduler": {
+      "label": "الجدولة",
+      "short": "الجدولة"
+    },
+    "bot": {
+      "label": "وحدة تحكم البوت",
+      "short": "البوت"
+    },
+    "settings": {
+      "label": "الإعدادات",
+      "short": "الإعدادات"
+    },
+    "account": {
+      "label": "إعدادات الحساب",
+      "short": "الحساب"
+    },
+    "admin": {
+      "label": "الإدارة",
+      "short": "الإدارة"
+    },
+    "security": {
+      "label": "الأمان",
+      "short": "الأمان"
+    }
+  },
+  "mainNav": "القائمة الرئيسية",
+  "more": "المزيد",
+  "lightMode": "الوضع الفاتح",
+  "darkMode": "الوضع الداكن",
+  "offline": "لا يستطيع MarketMyna الوصول إلى الخادم الآن. جارٍ إعادة الاتصال…",
+  "user": {
+    "title": "{{name}} · {{email}} - إعدادات الحساب",
+    "plan": "خطة {{plan}}"
+  },
+  "status": {
+    "api": {
+      "checking": "جارٍ فحص الواجهة",
+      "online": "الواجهة متصلة",
+      "offline": "الواجهة غير متصلة"
+    },
+    "schedule": {
+      "unknown": "الجدولة غير معروفة",
+      "active": "الجدولة مفعّلة",
+      "off": "الجدولة متوقفة"
+    }
+  },
+  "area": {
+    "label": "القسم",
+    "trader": "المتداول",
+    "investor": "المستثمر",
+    "named": "قسم {{area}}",
+    "youAreIn": "أنت في واجهة {{area}}",
+    "switchTo": "الانتقال إلى واجهة {{area}}",
+    "switch": "تبديل"
+  },
+  "time": {
+    "never": "أبدًا",
+    "justNow": "الآن"
+  },
+  "live": {
+    "prices": "الأسعار: {{sources}}",
+    "live": "مباشر",
+    "noTrading": "لا تداول الآن",
+    "closed": "السوق مغلق",
+    "connecting": "جارٍ الاتصال…",
+    "updatedNow": "تم التحديث الآن",
+    "updatedAgo_zero": "تم التحديث الآن",
+    "updatedAgo_one": "تم التحديث قبل {{count}} ث",
+    "updatedAgo_two": "تم التحديث قبل {{count}} ث",
+    "updatedAgo_few": "تم التحديث قبل {{count}} ث",
+    "updatedAgo_many": "تم التحديث قبل {{count}} ث",
+    "updatedAgo_other": "تم التحديث قبل {{count}} ث",
+    "lastTraded": "آخر أسعار التداول"
+  },
+  "export": {
+    "button": "تصدير",
+    "nothing": "لا يوجد ما يُصدَّر بعد",
+    "failed": "فشل التصدير: {{error}}",
+    "hint": {
+      "xlsx": "ورقة لكل جدول",
+      "csv": "نص عادي لأي برنامج جداول",
+      "pdf": "منسّق للطباعة أو المشاركة"
+    }
+  },
+  "watch": {
+    "watch": "متابعة",
+    "watching": "قيد المتابعة",
+    "inList": "في قائمة متابعتك - انقر للتغيير",
+    "add": "أضف إلى قائمة المتابعة",
+    "addTo": "أضف {{symbol}} إلى…"
+  }
+}

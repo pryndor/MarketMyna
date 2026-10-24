@@ -1,0 +1,31 @@
+# What the app (API + scheduler) needs: pip install -r requirements-web.txt
+# requirements.txt adds the scraping and data extras the API imports lazily
+# with fallbacks - leaving them out keeps the install small.
+fastapi>=0.110.0
+uvicorn[standard]>=0.27.0
+httpx>=0.27.0
+pydantic>=2.0.0
+sqlalchemy>=2.0.0
+pandas>=2.0.0
+numpy>=1.24.0
+scipy>=1.11.0
+yfinance>=0.2.30
+ccxt>=4.0.0
+requests>=2.31.0
+pyyaml>=6.0
+litellm==1.106.3        # pinned: 1.104.2 logging filter raised KeyError on every log line (fixed by 1.106.3)
+cryptography>=42.0.0
+argon2-cffi>=23.1.0  # account password hashing (src/services/accounts.py)
+pymupdf>=1.23.0
+casparser>=1.4,<2  # CAMS / KFintech CAS import (MIT)
+openpyxl>=3.1.0     # .xlsx: fund-house portfolio files (src/services/fund_holdings.py), listings
+xlrd>=2.0.1         # .xls: older portfolio files, EIA oil-stock history (src/services/eia_stocks.py)
+
+# Optional market sources (same as a local install without them: code falls
+# back to other providers). Uncomment to enable:
+# akshare>=1.14.0      # China A-shares / HK
+# jugaad-data>=0.20    # NSE direct (often blocked from cloud IPs)
+playwright>=1.45    # headless Chromium for Reddit / StockTwits social sentiment (src/data/social/)
+pypinyin>=0.51       # Chinese names -> pinyin when no English name exists (src/services/translate.py)
+# Security floor for an indirect dependency (aiohttp/litellm): CVE-2026-104874 fixed in 6.9.1.
+multidict>=6.9.1

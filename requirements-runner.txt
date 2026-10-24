@@ -1,0 +1,10 @@
+# Minimal dependencies for the headless scheduled analysis
+# (python -m src.cli.scheduled_run), e.g. from cron.
+# The full requirements.txt also pulls in extras the scheduled run never touches.
+pandas>=2.0.0
+numpy>=1.24.0
+yfinance>=0.2.30
+requests>=2.31.0
+sqlalchemy>=2.0.0
+pyyaml>=6.0
+litellm==1.106.3        # pinned: 1.104.2 logging filter raised KeyError on every log line (fixed by 1.106.3)

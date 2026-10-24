@@ -1,0 +1,247 @@
+@import "tailwindcss";
+
+/* Tailwind 4 gives buttons the plain arrow. Show the hand on anything
+   clickable, and keep the arrow on the tab / page you are already on. */
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  [role="tab"],
+  summary,
+  label:has(> input[type="checkbox"], > input[type="radio"]) {
+    cursor: pointer;
+  }
+  [role="tab"][aria-selected="true"],
+  [role="radio"][aria-checked="true"],
+  a[aria-current="page"] {
+    cursor: default;
+  }
+}
+
+/* Design tokens. Every page pulls color from these names (bg-surface,
+   text-muted, border-line, ...) instead of raw palette values, so the
+   whole app shifts together if a token changes. */
+@theme {
+  --font-sans: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", "SF Mono", ui-monospace, monospace;
+
+  /* Readability: one step up from Tailwind's 12px / 14px defaults, which
+     most labels, table cells and hints use. */
+  --text-xs: 0.8125rem;
+  --text-xs--line-height: 1.15rem;
+  --text-sm: 0.9375rem;
+  --text-sm--line-height: 1.4rem;
+
+  /* Dark palette after Logseq's default dark theme (Solarized teal).
+     Three depths so regions read apart: sidebar/bars (darkest), page
+     canvas, then cards on top with a shadow. bg-canvas inside a card is an
+     inset well, darker than the card. */
+  --color-sidebar: #01232c;
+  --color-canvas: #002b36;
+  --color-surface: #073642;
+  --color-raised: #0c4251;
+  --color-line: #1d5766;
+  --color-line-strong: #2f7082;
+
+  --color-fg: #eef4f4;
+  --color-muted: #bccbcd;
+  --color-faint: #98afb2;
+
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.3), 0 8px 24px -12px rgb(0 0 0 / 0.55);
+
+  --color-accent: #6d8cff;
+  --color-accent-soft: #6d8cff2e;
+  /* Accent as text/icon on dark surfaces (the base accent is tuned for
+     white-on-accent buttons and is too dim as foreground). */
+  --color-accent-fg: #8aa2ff;
+  /* Primary buttons: pale butter yellow with dark text, so they stand apart
+     from the blue accent and from the green / red used for price moves.
+     Light mode uses a slightly richer yellow so it still shows on white. */
+  --color-cta: #f7e08a;
+  --color-cta-hover: #fbeaa9;
+  --color-on-cta: #2b2106;
+
+  --color-up: #34d399;
+  --color-up-soft: #34d3991f;
+  --color-down: #fb8a8a;
+  --color-down-soft: #f871711f;
+  --color-warn: #fbbf24;
+  --color-warn-soft: #fbbf241f;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+/* Light theme: same token names, so every component switches with it.
+   Set by the header toggle (data-theme on <html>, see src/lib/theme.ts). */
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --color-sidebar: #e8ecf1;
+  --color-canvas: #f2f4f7;
+  --color-surface: #ffffff;
+  --color-raised: #eceff4;
+  --color-line: #cbd2de;
+  --color-line-strong: #adb6c6;
+
+  --color-fg: #0b101b;
+  --color-muted: #384152;
+  --color-faint: #4d5667;
+
+  --color-accent: #3552d1;
+  --color-accent-soft: #3552d11a;
+  --color-accent-fg: #2f4bbf;
+  --color-cta: #f6d55c;
+  --color-cta-hover: #f0c93a;
+  --color-on-cta: #2b2106;
+
+  --color-up: #0b7a52;
+  --color-up-soft: #0b7a5214;
+  --color-down: #c02f2f;
+  --color-down-soft: #c02f2f12;
+  --color-warn: #8f5b00;
+  --color-warn-soft: #b7791f1a;
+
+  --shadow-card: 0 1px 2px rgb(15 23 42 / 0.06), 0 6px 18px -10px rgb(15 23 42 / 0.18);
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background-color: var(--color-canvas);
+  color: var(--color-fg);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* In the base layer so a link's own text-* class (text-on-cta on the yellow
+   buttons, text-accent, ...) wins; unlayered, this beat every utility. */
+@layer base {
+  a {
+    color: inherit;
+  }
+}
+
+/* Touch screens: no grey flash on tap, and no double-tap zoom delay. */
+html {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* iOS Safari zooms the page when a focused field's text is under 16px.
+   Keep form fields at 16px on phones so tapping a search box doesn't jump. */
+@media (max-width: 767px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* Horizontal tab/chip strips that scroll sideways on narrow screens. */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Market insights loading state (components/InsightLoader.tsx): candles
+   grow in one by one, the trend line draws itself, a scan line sweeps. */
+.insight-loader-candle {
+  transform-box: view-box;
+  animation: insight-candle 2.6s ease-out infinite both;
+}
+.insight-loader-trend {
+  stroke-dasharray: 1;
+  animation: insight-trend 2.6s ease-in-out infinite;
+}
+.insight-loader-scan {
+  fill: color-mix(in srgb, var(--color-accent) 18%, transparent);
+  animation: insight-scan 2.6s linear infinite;
+}
+.insight-loader-dot {
+  animation: insight-dot 1.2s ease-in-out infinite;
+}
+.insight-loader-fade {
+  animation: insight-fade 0.45s ease-out;
+}
+@keyframes insight-candle {
+  0% { opacity: 0; transform: scaleY(0.2); }
+  12%, 80% { opacity: 1; transform: scaleY(1); }
+  100% { opacity: 0; transform: scaleY(1); }
+}
+@keyframes insight-trend {
+  0% { stroke-dashoffset: 1; opacity: 1; }
+  70% { stroke-dashoffset: 0; opacity: 1; }
+  100% { stroke-dashoffset: 0; opacity: 0; }
+}
+@keyframes insight-scan {
+  from { transform: translateX(-28px); }
+  to { transform: translateX(240px); }
+}
+@keyframes insight-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.35; transform: scale(0.7); }
+}
+@keyframes insight-fade {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .insight-loader-candle,
+  .insight-loader-trend,
+  .insight-loader-scan,
+  .insight-loader-dot,
+  .insight-loader-fade {
+    animation: none;
+  }
+  .insight-loader-trend {
+    stroke-dashoffset: 0;
+  }
+  .insight-loader-scan {
+    display: none;
+  }
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-line-strong);
+  border-radius: 999px;
+  border: 3px solid var(--color-canvas);
+}
+
+/* Live prices: brief green / red wash on the cell when a price changes. */
+@keyframes flash-up-kf {
+  from { background-color: color-mix(in srgb, var(--color-up) 28%, transparent); }
+  to { background-color: transparent; }
+}
+@keyframes flash-down-kf {
+  from { background-color: color-mix(in srgb, var(--color-down) 28%, transparent); }
+  to { background-color: transparent; }
+}
+.flash-up { animation: flash-up-kf 1.2s ease-out; }
+.flash-down { animation: flash-down-kf 1.2s ease-out; }
+@media (prefers-reduced-motion: reduce) {
+  .flash-up, .flash-down { animation: none; }
+}
+
+/* Arabic and Persian letters join up: letter-spacing (tracking-tight, the
+   uppercase labels' tracking-wide) pulls them apart, so it is off for both. */
+:root:lang(ar),
+:root:lang(fa) {
+  --tracking-tighter: 0em;
+  --tracking-tight: 0em;
+  --tracking-wide: 0em;
+  --tracking-wider: 0em;
+  --tracking-widest: 0em;
+}

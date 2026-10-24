@@ -1,0 +1,113 @@
+{
+  "nav": {
+    "markets": {
+      "label": "市场",
+      "short": "市场"
+    },
+    "watchlist": {
+      "label": "自选",
+      "short": "自选"
+    },
+    "analyze": {
+      "label": "分析",
+      "short": "分析"
+    },
+    "trade": {
+      "label": "交易",
+      "short": "交易"
+    },
+    "portfolio": {
+      "label": "持仓",
+      "short": "持仓"
+    },
+    "compare": {
+      "label": "对比",
+      "short": "对比"
+    },
+    "scheduler": {
+      "label": "定时任务",
+      "short": "定时"
+    },
+    "bot": {
+      "label": "机器人控制台",
+      "short": "机器人"
+    },
+    "settings": {
+      "label": "设置",
+      "short": "设置"
+    },
+    "account": {
+      "label": "账户设置",
+      "short": "账户"
+    },
+    "admin": {
+      "label": "管理",
+      "short": "管理"
+    },
+    "security": {
+      "label": "安全",
+      "short": "安全"
+    }
+  },
+  "mainNav": "主菜单",
+  "more": "更多",
+  "lightMode": "浅色模式",
+  "darkMode": "深色模式",
+  "offline": "MarketMyna 暂时无法连接服务器，正在重连…",
+  "user": {
+    "title": "{{name}} · {{email}} - 账户设置",
+    "plan": "{{plan}} 套餐"
+  },
+  "status": {
+    "api": {
+      "checking": "API 检查中",
+      "online": "API 在线",
+      "offline": "API 离线"
+    },
+    "schedule": {
+      "unknown": "定时任务状态未知",
+      "active": "定时任务运行中",
+      "off": "定时任务已关闭"
+    }
+  },
+  "area": {
+    "label": "版块",
+    "trader": "交易者",
+    "investor": "投资者",
+    "named": "{{area}}版块",
+    "youAreIn": "你正在使用{{area}}视图",
+    "switchTo": "切换到{{area}}视图",
+    "switch": "切换"
+  },
+  "time": {
+    "never": "从未",
+    "justNow": "刚刚"
+  },
+  "live": {
+    "prices": "价格来源：{{sources}}",
+    "live": "实时",
+    "noTrading": "当前无交易",
+    "closed": "已休市",
+    "connecting": "连接中…",
+    "updatedNow": "刚刚更新",
+    "updatedAgo_other": "{{count}} 秒前更新",
+    "lastTraded": "最近成交价"
+  },
+  "export": {
+    "button": "导出",
+    "nothing": "暂无可导出的内容",
+    "failed": "导出失败：{{error}}",
+    "hint": {
+      "xlsx": "每个表格一个工作表",
+      "csv": "纯文本，任何表格软件都能打开",
+      "pdf": "适合打印或分享"
+    }
+  },
+  "watch": {
+    "watch": "关注",
+    "watching": "已关注",
+    "inList": "已在自选中 - 点击修改",
+    "add": "加入自选",
+    "addTo": "将 {{symbol}} 加入…"
+  }
+}
