@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en-IN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#002b36" />
+    <!-- Theme before first paint (no flash). A file, not inline, so the
+         Content-Security-Policy can forbid inline scripts. -->
+    <script src="/theme-init.js"></script>
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="MarketMyna" />
+    <meta name="application-name" content="MarketMyna" />
+
+    <title>MarketMyna</title>
+    <meta name="description" content="Self-hosted stock analysis, screening, portfolios and alerts." />
+    <!-- A private, self-hosted app: keep it out of search engines. -->
+    <meta name="robots" content="noindex, nofollow" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

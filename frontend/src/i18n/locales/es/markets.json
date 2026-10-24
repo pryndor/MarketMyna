@@ -1,0 +1,256 @@
+{
+  "title": "Mercados",
+  "intro": "Todas las acciones, ETF y fondos de inversión, con búsqueda y orden.",
+  "listings_one": "{{n}} valor",
+  "listings_many": "{{n}} valores",
+  "listings_other": "{{n}} valores",
+  "dataUpdated": "datos actualizados {{ago}}",
+  "refresh": "Actualizar datos",
+  "refreshed": "Listado actualizado",
+  "searchSubtitle": "Búsqueda «{{q}}»",
+  "exportNote": "Primeras {{first}} de {{total}} coincidencias; acota los filtros para exportar el resto.",
+  "ethical": {
+    "only": "Solo éticas",
+    "count_one": "{{n}} ética",
+    "count_many": "{{n}} éticas",
+    "count_other": "{{n}} éticas",
+    "onDescription": "Se muestran empresas y fondos que pasan el filtro ético. Abre una acción para ver sus ratios de deuda, efectivo e ingresos por intereses y la parte de los dividendos que conviene donar.",
+    "offDescription": "Oculta bancos, aseguradoras, alcohol, tabaco, juego y otros negocios excluidos, además de los fondos convencionales."
+  },
+  "marketTabs": {
+    "india": {
+      "label": "India",
+      "hint": "Todas las acciones y ETF de NSE + todos los fondos de AMFI"
+    },
+    "us": {
+      "label": "EE. UU.",
+      "hint": "Todas las acciones y ETF de NYSE / NASDAQ / AMEX"
+    },
+    "china_a": {
+      "label": "China A",
+      "hint": "Todas las acciones de Shanghái / Shenzhen / Pekín"
+    },
+    "hong_kong": {
+      "label": "Hong Kong",
+      "hint": "Todas las acciones, ETF y REIT de HKEX"
+    },
+    "crypto": {
+      "label": "Cripto",
+      "hint": "Principales pares con USDT"
+    },
+    "all": {
+      "label": "Todos los mercados",
+      "hint": "Todo lo anterior en una lista"
+    }
+  },
+  "types": {
+    "all": "Todo",
+    "stock": "Acciones",
+    "etf": "ETF",
+    "mf": "Fondos de inversión",
+    "crypto": "Cripto"
+  },
+  "fund": "Fondo",
+  "allIndustries": "Todas las industrias",
+  "allSubCategories": "Todas las subcategorías",
+  "searchStocks": "Buscar por símbolo o nombre de empresa",
+  "searchFunds": "Buscar por nombre del fondo, gestora o código",
+  "filtersButton": "Filtros",
+  "clear": "Quitar filtros",
+  "clearTitle": "Quitar la búsqueda, la industria y todos los filtros",
+  "plan": {
+    "both": "Direct + Regular",
+    "direct": "Direct",
+    "regular": "Regular"
+  },
+  "option": {
+    "any": "Cualquier opción",
+    "growth": "Growth"
+  },
+  "unavailable": "{{market}}: listado no disponible",
+  "partial": "{{market}}: mostrando datos en caché o parciales",
+  "retrying": "Reintentando automáticamente.",
+  "loadError": "No se pudo cargar el listado",
+  "categoryGuessed": "Categoría deducida del nombre de la empresa",
+  "badge": {
+    "halal": "Ética",
+    "doubtful": "Dudosa",
+    "haram": "No ética",
+    "unknown": "Sin filtrar"
+  },
+  "empty": {
+    "title": "Ningún resultado",
+    "noData": "Este mercado aún no tiene datos: mira el aviso de arriba.",
+    "tryAgain": "Prueba una búsqueda más corta o quita los filtros."
+  },
+  "pager": {
+    "range": "{{from}}–{{to}} de {{total}}",
+    "first": "Primera",
+    "prev": "Anterior",
+    "next": "Siguiente",
+    "page": "Página {{page}} / {{pages}}"
+  },
+  "col": {
+    "watch": "Seguir",
+    "name": "Nombre",
+    "market": "Mercado",
+    "category": "Categoría",
+    "price": "Precio",
+    "nav": "Valor liq.",
+    "sipDay": "Día SIP",
+    "navDate": "Fecha valor liq.",
+    "change": "Var. %",
+    "marketCap": "Capit.",
+    "volume": "Volumen",
+    "range": "Rango 52 sem."
+  },
+  "filter": {
+    "any": "Cualquiera",
+    "changeHint": "Variación de hoy en %, p. ej. mín. 2 o máx. -3",
+    "capHint": "p. ej. mín. 2B, máx. 10B",
+    "capHintIndia": "p. ej. mín. 5000cr, máx. 20000cr",
+    "volumeHint": "Acciones negociadas hoy, p. ej. mín. 1M"
+  },
+  "filters": {
+    "category": "Categoría",
+    "fundType": "Tipo de fondo",
+    "pickAny": "elige las que quieras",
+    "noCategories": "No hay categorías en esta vista.",
+    "ethical": "Ética",
+    "ethicalHint": "filtro de inversión ética",
+    "shariah": {
+      "halal": "Éticas",
+      "halalHint": "Fondos: mandato con filtro ético. Acciones: el negocio pasa el filtro; abre la acción para ver los ratios de deuda / efectivo / ingresos por intereses",
+      "doubtful": "Dudosas",
+      "doubtfulHint": "Actividad mixta (hoteles, medios, REIT…): revisa las fuentes de ingresos",
+      "haram": "No cumplen",
+      "haramHint": "Finanzas o seguros basados en intereses, alcohol, tabaco, juego, cerdo, armas, contenido adulto, o un fondo convencional / con intereses",
+      "unknown": "Sin clasificar",
+      "unknownHint": "Sin datos de sector: abre la acción para un análisis completo"
+    },
+    "sip": "Mejor día SIP",
+    "sipHint": "últimos 3 / 5 / 10 años",
+    "sipEdge": {
+      "consistent": "Día constante",
+      "consistentHint": "El mejor día SIP cayó en fechas cercanas en 3, 5 y 10 años",
+      "no_edge": "Sin ventaja fiable",
+      "no_edgeHint": "El mejor día cambió entre periodos: cualquier día vale igual",
+      "negligible": "Diferencia mínima",
+      "negligibleHint": "El mejor y el peor día difieren menos de 0,1 puntos al año (casi todos los fondos de deuda)",
+      "short": "Menos de 5 años",
+      "shortHint": "Solo 3-5 años de precios, demasiado poco para comprobar la constancia"
+    },
+    "nav": "Valor liquidativo",
+    "price": {
+      "label": "Precio",
+      "in": "en {{symbol}}",
+      "eachCurrency": "en la moneda de cada valor",
+      "under": "Menos de {{n}}",
+      "above": "Más de {{n}}"
+    },
+    "min": "Mín.",
+    "max": "Máx.",
+    "minPrice": "Precio mínimo",
+    "maxPrice": "Precio máximo",
+    "marketCap": "Capitalización",
+    "cap": {
+      "mega": "Mega cap",
+      "large": "Gran cap",
+      "mid": "Mediana cap",
+      "small": "Pequeña cap",
+      "micro": "Micro cap"
+    },
+    "today": "Hoy",
+    "change": {
+      "gainers": "Suben",
+      "losers": "Bajan",
+      "up5": "Suben ≥ 5%",
+      "down5": "Bajan ≥ 5%"
+    },
+    "w52": {
+      "label": "52 semanas",
+      "high": "Cerca del máx. 52 sem.",
+      "highHint": "a menos del 5% del máximo de 52 semanas",
+      "low": "Cerca del mín. 52 sem.",
+      "lowHint": "a menos del 5% del mínimo de 52 semanas"
+    },
+    "volume": "Volumen",
+    "volumeHint": "acciones negociadas hoy",
+    "clearAll": "Quitar todos los filtros"
+  },
+  "insights": {
+    "title": "Claves del mercado",
+    "list": "Todos los listados",
+    "groups": {
+      "stocks": "Acciones",
+      "markets": "Mercados",
+      "economy": "Economía"
+    },
+    "tabs": {
+      "hot_trade": {
+        "label": "Acciones calientes",
+        "inline": "acciones calientes"
+      },
+      "hot_invest": {
+        "label": "Tendencias",
+        "inline": "tendencias"
+      },
+      "pulse": {
+        "label": "Pulso del mercado",
+        "inline": "pulso del mercado"
+      },
+      "rotation": {
+        "label": "Rotación sectorial",
+        "inline": "rotación sectorial"
+      },
+      "funds": {
+        "label": "Rotación de fondos",
+        "inline": "rotación de fondos"
+      },
+      "deals": {
+        "label": "Grandes operaciones",
+        "inline": "grandes operaciones"
+      },
+      "screens": {
+        "label": "Filtros",
+        "inline": "filtros"
+      },
+      "rates": {
+        "label": "Tipos y metales",
+        "inline": "tipos y metales"
+      },
+      "mood": {
+        "label": "Ánimo del mercado",
+        "inline": "ánimo del mercado"
+      },
+      "flows": {
+        "label": "Flujos FII / DII",
+        "inline": "flujos FII / DII"
+      },
+      "world": {
+        "label": "Mercados mundiales",
+        "inline": "mercados mundiales"
+      },
+      "valuation": {
+        "label": "Valoración del mercado",
+        "inline": "valoración del mercado"
+      },
+      "macro": {
+        "label": "Macro",
+        "inline": "macro"
+      },
+      "countries": {
+        "label": "Países",
+        "inline": "países"
+      },
+      "commodities": {
+        "label": "Materias primas",
+        "inline": "materias primas"
+      },
+      "oil": {
+        "label": "Sensibilidad al petróleo",
+        "inline": "sensibilidad al petróleo"
+      }
+    }
+  }
+}

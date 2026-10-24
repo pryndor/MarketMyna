@@ -1,0 +1,103 @@
+[build-system]
+requires = ["setuptools>=77.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "marketmyna"
+version = "0.2.0"
+description = "Stock analysis, screening, portfolios and alerts with AI analysts: India, US, China, Hong Kong and crypto"
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+requires-python = ">=3.11"
+authors = [
+    {name = "Balasubramanian Periannan"}
+]
+keywords = ["stocks", "stock-screener", "investment", "analysis", "portfolio", "shariah", "nse", "bse",
+            "mutual-funds", "ai-agents", "llm", "finance"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Web Environment",
+    "Framework :: FastAPI",
+    "Intended Audience :: End Users/Desktop",
+    "Intended Audience :: Financial and Insurance Industry",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Office/Business :: Financial :: Investment",
+]
+
+# Same as requirements-web.txt
+dependencies = [
+    "fastapi>=0.110.0",
+    "uvicorn[standard]>=0.27.0",
+    "httpx>=0.27.0",
+    "pydantic>=2.0.0",
+    "sqlalchemy>=2.0.0",
+    "pandas>=2.0.0",
+    "numpy>=1.24.0",
+    "scipy>=1.11.0",
+    "yfinance>=0.2.30",
+    "ccxt>=4.0.0",
+    "requests>=2.31.0",
+    "pyyaml>=6.0",
+    "litellm==1.106.3",  # pinned: 1.104.2 logging filter raised KeyError on every log line
+    "cryptography>=42.0.0",
+    "argon2-cffi>=23.1.0",
+    "pymupdf>=1.23.0",
+    "casparser>=1.4,<2",
+    "openpyxl>=3.1.0",
+    "xlrd>=2.0.1",
+    "playwright>=1.45",
+    "pypinyin>=0.51",
+    "multidict>=6.9.1",
+]
+
+[project.optional-dependencies]
+china = ["akshare>=1.14.0"]
+india = ["jugaad-data>=0.20"]
+dev = [
+    "pytest>=7.4.0",
+    "black>=23.0.0",
+    "ruff>=0.1.0",
+    "mypy>=1.0.0",
+]
+
+[project.scripts]
+marketmyna = "marketmyna.launcher:main"
+
+[project.urls]
+Homepage = "https://marketmyna.com/"
+Source = "https://github.com/pryndor/MarketMyna"
+Issues = "https://github.com/pryndor/MarketMyna/issues"
+Changelog = "https://github.com/pryndor/MarketMyna/releases"
+
+[tool.setuptools.packages.find]
+include = ["marketmyna*"]
+
+[tool.setuptools.package-data]
+# web/ is the built frontend, copied in by .github/build_package.py
+marketmyna = ["strategies/*", "web/**/*"]
+
+[tool.black]
+line-length = 100
+target-version = ["py311", "py312"]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]

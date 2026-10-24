@@ -1,0 +1,14 @@
+{
+  "app": {
+    "/": "Markets",
+    "/analyze": "Analyze",
+    "/trade": "Trade",
+    "/watchlist": "Watchlist",
+    "/portfolio": "Portfolio",
+    "/compare": "Compare",
+    "/scheduler": "Reports",
+    "/bot": "Bot",
+    "/settings": "Settings",
+    "/account": "Account"
+  }
+}
