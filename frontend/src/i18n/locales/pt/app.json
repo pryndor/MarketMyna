@@ -1,0 +1,116 @@
+{
+  "nav": {
+    "markets": {
+      "label": "Mercados",
+      "short": "Mercados"
+    },
+    "watchlist": {
+      "label": "Lista de observação",
+      "short": "Lista"
+    },
+    "analyze": {
+      "label": "Analisar",
+      "short": "Analisar"
+    },
+    "trade": {
+      "label": "Operar",
+      "short": "Operar"
+    },
+    "portfolio": {
+      "label": "Carteira",
+      "short": "Carteira"
+    },
+    "compare": {
+      "label": "Comparar",
+      "short": "Comparar"
+    },
+    "scheduler": {
+      "label": "Agendador",
+      "short": "Agenda"
+    },
+    "bot": {
+      "label": "Console do bot",
+      "short": "Bot"
+    },
+    "settings": {
+      "label": "Configurações",
+      "short": "Config."
+    },
+    "account": {
+      "label": "Configurações da conta",
+      "short": "Conta"
+    },
+    "admin": {
+      "label": "Admin",
+      "short": "Admin"
+    },
+    "security": {
+      "label": "Segurança",
+      "short": "Segurança"
+    }
+  },
+  "mainNav": "Principal",
+  "more": "Mais",
+  "lightMode": "Modo claro",
+  "darkMode": "Modo escuro",
+  "offline": "O MarketMyna não consegue falar com o servidor agora. Reconectando…",
+  "user": {
+    "title": "{{name}} · {{email}} - Configurações da conta",
+    "plan": "Plano {{plan}}"
+  },
+  "status": {
+    "api": {
+      "checking": "API verificando",
+      "online": "API online",
+      "offline": "API offline"
+    },
+    "schedule": {
+      "unknown": "Agendamento desconhecido",
+      "active": "Agendamento ativo",
+      "off": "Agendamento desligado"
+    },
+    "update": "Atualização disponível"
+  },
+  "area": {
+    "label": "Área",
+    "trader": "Trader",
+    "investor": "Investidor",
+    "named": "Área {{area}}",
+    "youAreIn": "Você está na visão {{area}}",
+    "switchTo": "Mudar para a visão {{area}}",
+    "switch": "Mudar"
+  },
+  "time": {
+    "never": "nunca",
+    "justNow": "agora mesmo"
+  },
+  "live": {
+    "prices": "Preços: {{sources}}",
+    "live": "Ao vivo",
+    "noTrading": "Sem negociação agora",
+    "closed": "Mercado fechado",
+    "connecting": "conectando…",
+    "updatedNow": "atualizado agora mesmo",
+    "updatedAgo_one": "atualizado há {{count}} s",
+    "updatedAgo_many": "atualizado há {{count}} s",
+    "updatedAgo_other": "atualizado há {{count}} s",
+    "lastTraded": "últimos preços negociados"
+  },
+  "export": {
+    "button": "Exportar",
+    "nothing": "Ainda não há nada para exportar",
+    "failed": "Falha ao exportar: {{error}}",
+    "hint": {
+      "xlsx": "Uma planilha por tabela",
+      "csv": "Texto simples, qualquer planilha",
+      "pdf": "Pronto para imprimir ou compartilhar"
+    }
+  },
+  "watch": {
+    "watch": "Observar",
+    "watching": "Observando",
+    "inList": "Na sua lista - clique para alterar",
+    "add": "Adicionar à lista",
+    "addTo": "Adicionar {{symbol}} a…"
+  }
+}

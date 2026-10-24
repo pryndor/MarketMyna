@@ -1,0 +1,48 @@
+# Virtual environment
+venv/
+.venv/
+env/
+
+# Python cache and tool caches
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+# Built frontend copied into the package by .github/build_package.py
+marketmyna/web/
+
+# Frontend (frontend/.gitignore covers the rest)
+node_modules/
+
+# IDE and OS
+.idea/
+.vscode/
+.claude/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Environment files
+.env
+.env.local
+
+# Local data and output (the app keeps its data in ~/.marketmyna)
+*.db
+*.sqlite
+*.log
+reports/
+
+# Personal notes
+MEMO.md

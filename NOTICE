@@ -1,0 +1,22 @@
+MarketMyna
+Copyright 2026 Balasubramanian Periannan
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not
+use this software except in compliance with the License. You may obtain a copy
+of the License in the LICENSE file or at https://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software distributed
+under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+CONDITIONS OF ANY KIND, either express or implied.
+
+https://marketmyna.com/ - https://github.com/pryndor/MarketMyna
+
+Name and logo: the License does not grant permission to use the names
+"MarketMyna" and "Myna", or the logos and artwork in frontend/public/brand/
+(section 6). A modified copy must use its own name and logo.
+
+Third-party software: each package the app installs keeps its own license.
+They are permissive (MIT, BSD, ISC, Apache-2.0) except PyMuPDF (AGPL-3.0),
+which is used only to make PDF files and has its own terms.
+
+MarketMyna is an analysis tool, not investment advice.
