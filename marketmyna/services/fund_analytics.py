@@ -150,7 +150,7 @@ def rolling(nav: pd.Series, bench: Optional[pd.Series] = None) -> dict:
                "bench_median": None, "beat_pct": None, "compared": 0}
         if idx is not None:
             b = _cagr_series(idx, years)
-            pair = pd.concat([f, b], axis=1, keys=["f", "b"]).dropna()
+            pair = pd.concat([f, b], axis=1, keys=["f", "b"], sort=True).dropna()
             if len(pair) >= 30:
                 row.update(bench_median=float(pair["b"].median()), compared=int(len(pair)),
                            beat_pct=float((pair["f"] > pair["b"]).mean() * 100))

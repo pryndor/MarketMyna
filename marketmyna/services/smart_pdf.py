@@ -43,11 +43,11 @@ _NUMERIC = re.compile(r"^[^\w\s]{0,3}\$?[+\-−]?[\d.,]+\s?(%|×|pts)?$|^[\d.,]+
 
 @lru_cache(maxsize=None)
 def _fonts(bold: bool):
-    import fitz
+    import pymupdf
 
-    main = fitz.Font("hebo" if bold else "helv")
+    main = pymupdf.Font("hebo" if bold else "helv")
     fallbacks = []
-    for make in (lambda: fitz.Font(script=0), lambda: fitz.Font("cjk"), lambda: fitz.Font(script=9)):
+    for make in (lambda: pymupdf.Font(script=0), lambda: pymupdf.Font("cjk"), lambda: pymupdf.Font(script=9)):
         try:
             fallbacks.append(make())
         except Exception:
@@ -112,9 +112,9 @@ def tone_of(value: str):
 
 class Canvas:
     def __init__(self, title: str, subtitle: str):
-        import fitz
+        import pymupdf
 
-        self.doc = fitz.open()
+        self.doc = pymupdf.open()
         self.title, self.subtitle = title, subtitle
         self.page = None
         self.y = 0.0
@@ -140,23 +140,23 @@ class Canvas:
 
     def text(self, x: float, baseline: float, text: str, size: float, bold: bool = False, color=INK,
              align: str = "left", width: float = 0.0) -> None:
-        import fitz
+        import pymupdf
 
         if not text:
             return
         if align != "left":
             w = text_width(text, size, bold)
             x += (width - w) if align == "right" else (width - w) / 2
-        writer = fitz.TextWriter(self.page.rect)
+        writer = pymupdf.TextWriter(self.page.rect)
         for font, part in _runs(text, bold):
             writer.append((x, baseline), part, font=font, fontsize=size)
             x += font.text_length(part, fontsize=size)
         writer.write_text(self.page, color=color)
 
     def rect(self, x, y, w, h, fill=None, color=None, radius=None, width: float = 0.6) -> None:
-        import fitz
+        import pymupdf
 
-        r = fitz.Rect(x, y, x + w, y + h)
+        r = pymupdf.Rect(x, y, x + w, y + h)
         if radius:
             self.page.draw_rect(r, color=color, fill=fill, width=width, radius=radius)
         else:

@@ -123,13 +123,13 @@ def test_general_users_get_readings_never_calls():
 
 
 def test_pdf_and_excel_render():
-    import fitz
+    import pymupdf
     from openpyxl import load_workbook
 
     for doc in (_doc(),):
         pdf = to_pdf(doc)
         assert pdf.startswith(b"%PDF")
-        pages = fitz.open(stream=pdf, filetype="pdf")
+        pages = pymupdf.open(stream=pdf, filetype="pdf")
         first = pages[0].get_text()
         assert "WIPRO" in first and f"Page 1 of {len(pages)}" in first
         assert "₹100.00" in first  # the rupee sign comes from the fallback font
