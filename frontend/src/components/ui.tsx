@@ -50,6 +50,7 @@ const ICON_PATHS = {
   user: 'M12 12a4 4 0 100-8 4 4 0 000 8zM4 21a8 8 0 0116 0',
   shield: 'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z',
   radar: 'M12 21a9 9 0 110-18 9 9 0 010 18zM12 16a4 4 0 110-8M12 12l6-6',
+  eye: 'M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12zM12 15a3 3 0 100-6 3 3 0 000 6z',
 } as const
 
 export type IconName = keyof typeof ICON_PATHS

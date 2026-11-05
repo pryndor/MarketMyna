@@ -5,7 +5,6 @@ pattern as PortfolioManager."""
 from __future__ import annotations
 
 from collections import Counter
-
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Optional

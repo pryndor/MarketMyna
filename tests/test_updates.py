@@ -194,7 +194,7 @@ def test_apply_source_rewritten_history_keeps_backup(repos):
     old = _head(local)
     (upstream / "app.txt").write_text("v2")
     _git(upstream, "commit", "-q", "--amend", "-am", "one, amended")  # history rewritten (force-push)
-    updates.apply_source(logs := [])
+    updates.apply_source([])
     assert _head(local) == _head(upstream)
     branches = subprocess.run(["git", "branch", "--format=%(refname:short) %(objectname)"], cwd=local,
                               capture_output=True, text=True).stdout

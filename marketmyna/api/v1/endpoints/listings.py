@@ -154,6 +154,61 @@ def hot_stocks(
     return hot.with_live_prices(call_with_deadline(hot.investor, 90, market), live)
 
 
+@router.get("/listings/watch")
+def stocks_to_watch(
+    market: str = Query(default="india"),
+    period: str = Query(default="day", pattern="^(day|week|month|ideas)$"),
+) -> dict:
+    """Stocks to watch today / this week / this month, or new stock ideas
+    (marketmyna/services/stocks_to_watch.py)."""
+    from marketmyna.services import live_market
+    from marketmyna.services import stocks_to_watch as watch
+    from marketmyna.utils.deadline import call_with_deadline
+
+    market = market.lower()
+    if market not in watch.MARKETS:
+        raise HTTPException(status_code=400, detail=f"Stocks to watch not available for '{market}'")
+    live = live_market.market(market)
+    try:
+        return call_with_deadline(lambda: watch.build(market, period, live=live), 120)
+    except TimeoutError as exc:
+        raise HTTPException(status_code=504, detail=str(exc))
+
+
+class WatchNotesRequest(BaseModel):
+    market: str
+    period: str = Field(pattern="^(day|week|month|ideas)$")
+    board: str = Field(min_length=1, max_length=40)
+
+
+@router.post("/listings/watch/notes")
+def stocks_to_watch_notes(body: WatchNotesRequest, config=Depends(get_config_dep)) -> dict:
+    """AI notes on one list; needs an AI model (Settings -> AI keys, or LLM_MODEL)."""
+    from marketmyna.llm.channels import llm_configured
+    from marketmyna.llm.protocol import GenerationError
+    from marketmyna.services import live_market
+    from marketmyna.services import stocks_to_watch as watch
+    from marketmyna.utils.deadline import call_with_deadline
+
+    market = body.market.lower()
+    if market not in watch.MARKETS:
+        raise HTTPException(status_code=400, detail=f"Stocks to watch not available for '{market}'")
+    if not llm_configured(config):
+        raise HTTPException(status_code=409, detail="No AI model is set up. Add an AI key under Settings.")
+    lists = call_with_deadline(lambda: watch.build(market, body.period, live=live_market.market(market)), 120)
+    board = next((b for b in lists["boards"] if b["key"] == body.board), None)
+    if board is None:
+        raise HTTPException(status_code=404, detail="Unknown list")
+    if not board["rows"]:
+        raise HTTPException(status_code=409, detail="This list is empty right now.")
+    try:
+        return call_with_deadline(lambda: watch.notes(market, body.period, board, config), 150)
+    except GenerationError as exc:
+        raise HTTPException(status_code=402, detail=str(exc))
+    except TimeoutError as exc:
+        raise HTTPException(status_code=504, detail=str(exc))
+
+
 @router.get("/listings/rotation")
 def sector_rotation(market: str = Query(default="india")) -> dict:
     """Relative rotation of sector baskets vs the market index (RRG), with

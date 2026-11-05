@@ -23,6 +23,14 @@
     "crypto": { "label": "Crypto", "hint": "Major USDT trading pairs" },
     "all": { "label": "All markets", "hint": "Everything above in one list" }
   },
+  "worldPicker": {
+    "label": "Market",
+    "every": "Every market",
+    "search": "Search a market…",
+    "hint": "Every stock on this exchange",
+    "allHint": "India, US, China A, Hong Kong, crypto and more markets in one list",
+    "none": "No market matches"
+  },
   "types": { "all": "All", "stock": "Stocks", "etf": "ETFs", "mf": "Mutual funds", "crypto": "Crypto" },
   "fund": "Fund",
   "allIndustries": "All industries",
@@ -138,6 +146,8 @@
     "tabs": {
       "hot_trade": { "label": "Hot stocks", "inline": "hot stocks" },
       "hot_invest": { "label": "Trending", "inline": "trending" },
+      "watch": { "label": "Stocks to watch", "inline": "stocks to watch" },
+      "ideas": { "label": "New stock ideas", "inline": "new stock ideas" },
       "pulse": { "label": "Market pulse", "inline": "market pulse" },
       "rotation": { "label": "Sector rotation", "inline": "sector rotation" },
       "funds": { "label": "Fund rotation", "inline": "fund rotation" },

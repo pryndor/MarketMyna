@@ -348,3 +348,44 @@ interface MarketMood {
 export async function getMarketMood(market: string, signal?: AbortSignal): Promise<MarketMood> {
   return (await apiClient.get('/macro/mood', { params: { market }, signal })).data
 }
+
+export interface IndexQuote {
+  key: string
+  label: string
+  note: string
+  change_unit: '%' | 'points'
+  price: number
+  prev_close: number
+  change: number
+  change_pct: number | null
+  day_high: number | null
+  day_low: number | null
+  /** Today's (or the last session's) 5-minute closes. */
+  spark: number[]
+  /** Epoch seconds of the last trade seen. */
+  updated: number | null
+  open: boolean
+  rsi14: number | null
+  vs_50d: number | null
+  vs_200d: number | null
+  high_52w: number | null
+  low_52w: number | null
+  expiry?: string | null
+  /** NSE indices: stocks up / down today and the index P/E. */
+  advances?: number | null
+  declines?: number | null
+  pe?: number | null
+}
+
+export interface IndexBoardData {
+  market: string
+  groups: Array<{ key: string; label: string; items: IndexQuote[] }>
+  failed: string[]
+  live: LiveInfo
+  source: string
+}
+
+/** Live index values for a Markets tab (marketmyna/api/v1/endpoints/macro.py /macro/indices). */
+export async function getIndexBoard(market: string, signal?: AbortSignal): Promise<IndexBoardData> {
+  return (await apiClient.get<IndexBoardData>('/macro/indices', { params: { market }, signal })).data
+}

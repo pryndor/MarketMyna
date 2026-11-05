@@ -130,6 +130,17 @@ def world_markets() -> dict:
     return live_market.memo(("world",), run)
 
 
+@router.get("/macro/indices")
+def index_board(market: str = "india") -> dict:
+    """Live index values for india | us | china_a | hong_kong | crypto | all:
+    benchmarks, sectors and global, with day change, day line and readings."""
+    from marketmyna.services import index_board as board
+    from marketmyna.services import live_market
+
+    m = market.lower() if market.lower() in board.BOARDS else "india"
+    return live_market.memo(("indices", m), lambda: board.build(m))
+
+
 @router.get("/macro/valuation")
 def market_valuation() -> dict:
     """US market P/E, CAPE and yields against their history since 1871; Nifty

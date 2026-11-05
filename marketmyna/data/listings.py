@@ -898,6 +898,145 @@ def fetch_crypto() -> list[dict]:
     return rows
 
 
+# ------------------------------------------------- More markets (screener)
+
+# Markets shown under "All markets" with a picker, not as their own tabs:
+# key -> (exchange code in the feed's screener, label, home currencies,
+# divisor for quotes in minor units: pence, agorot).
+WORLD_MARKETS: dict[str, tuple[str, str, tuple[str, ...], dict[str, float]]] = {
+    "canada": ("TOR", "Canada", ("CAD",), {}),
+    "uk": ("LSE", "UK", ("GBp", "GBP"), {"GBp": 100.0}),
+    "australia": ("ASX", "Australia", ("AUD",), {}),
+    "singapore": ("SES", "Singapore", ("SGD",), {}),
+    "israel": ("TLV", "Israel", ("ILA", "ILS"), {"ILA": 100.0}),
+}
+# The currency shown once minor units are scaled up.
+MAJOR_CURRENCY = {"GBp": "GBP", "ILA": "ILS"}
+_DEPOSITARY = re.compile(r"\b(CDR|SDR|CDI)\b")
+SCREEN_PAGE = 250
+SCREEN_MAX_PAGES = 30
+
+
+def world_row(q: dict, market: str) -> Optional[dict]:
+    """One listing row from a screener quote; None for lines in another
+    currency (foreign companies' local lines: CDRs, depositary lines)."""
+    _, _, home, divisors = WORLD_MARKETS[market]
+    currency = q.get("currency")
+    symbol = q.get("symbol")
+    if not symbol or currency not in home:
+        return None
+    name = q.get("longName") or q.get("shortName") or symbol
+    # Depositary lines of foreign companies (Canadian CDRs, Singapore SDRs,
+    # Australian CDIs): listed and traded here, but the feed's share count
+    # is the parent's, so their market cap would be the whole company's.
+    dr = _DEPOSITARY.search(q.get("shortName") or "")
+    if dr:
+        name = f"{name} ({dr.group(1)})"
+    div = divisors.get(currency, 1.0)
+
+    def px(key):
+        v = _float(q.get(key))
+        return v / div if v is not None else None
+
+    price = px("regularMarketPrice")
+    if not price:
+        return None
+    shares = _float(q.get("sharesOutstanding"))
+    return _row(
+        symbol, name, market, STOCK,
+        exchange=q.get("fullExchangeName") or WORLD_MARKETS[market][1],
+        price=price,
+        change=px("regularMarketChange"),
+        change_percent=_float(q.get("regularMarketChangePercent")),
+        volume=_float(q.get("regularMarketVolume")),
+        market_cap=price * shares if shares and not dr else None,
+        high_52w=px("fiftyTwoWeekHigh"),
+        low_52w=px("fiftyTwoWeekLow"),
+        currency=MAJOR_CURRENCY.get(currency, currency),
+    )
+
+
+# The feed's sector names; each exchange is asked once a day per sector so
+# every row gets its real sector (the full listing call carries none).
+FEED_SECTORS = ("Basic Materials", "Communication Services", "Consumer Cyclical", "Consumer Defensive", "Energy",
+                "Financial Services", "Healthcare", "Industrials", "Real Estate", "Technology", "Utilities")
+SECTOR_TTL = 24 * 3600
+_world_sectors: dict[str, tuple[float, dict[str, str]]] = {}
+
+
+def _screen_pages(query_screen, total_hint=None):
+    """Yields screener quotes page by page until the total is reached."""
+    total = total_hint
+    for page in range(SCREEN_MAX_PAGES):
+        out = query_screen(page * SCREEN_PAGE) or {}
+        quotes = out.get("quotes") or []
+        total = out.get("total") if total is None else total
+        yield from quotes
+        if len(quotes) < SCREEN_PAGE or (total is not None and (page + 1) * SCREEN_PAGE >= total):
+            return
+
+
+def _yf_screen(market: str, sector: Optional[str] = None):
+    import yfinance as yf
+    from yfinance import EquityQuery
+
+    query = EquityQuery("eq", ["exchange", WORLD_MARKETS[market][0]])
+    if sector:
+        query = EquityQuery("and", [query, EquityQuery("eq", ["sector", sector])])
+
+    def screen(offset: int) -> dict:
+        return yf.screen(query, size=SCREEN_PAGE, offset=offset, sortField="intradaymarketcap", sortAsc=False)
+
+    return screen
+
+
+def world_sectors(market: str, screen_for=None) -> dict[str, str]:
+    """symbol -> sector for one exchange, cached SECTOR_TTL; an old map is
+    kept when the refresh fails."""
+    hit = _world_sectors.get(market)
+    if hit and time.time() - hit[0] < SECTOR_TTL:
+        return hit[1]
+    screen_for = screen_for or (lambda sector: _yf_screen(market, sector))
+    out: dict[str, str] = {}
+    try:
+        for sector in FEED_SECTORS:
+            for q in _screen_pages(screen_for(sector)):
+                if q.get("symbol"):
+                    out[q["symbol"]] = sector
+    except Exception as exc:  # noqa: BLE001 - sectors only label rows
+        logger.info("%s sectors unavailable: %s", WORLD_MARKETS[market][1], exc)
+        return hit[1] if hit else {}
+    _world_sectors[market] = (time.time(), out)
+    return out
+
+
+def fetch_world(market: str, screen=None, sectors: Optional[dict[str, str]] = None) -> list[dict]:
+    """Every stock on one exchange from the market data feed's screener,
+    largest first, SCREEN_PAGE rows per call, each with its sector."""
+    if screen is None:
+        screen = _yf_screen(market)
+    if sectors is None:
+        sectors = world_sectors(market)
+
+    rows: dict[str, dict] = {}
+    total = None
+    for page in range(SCREEN_MAX_PAGES):
+        out = screen(page * SCREEN_PAGE) or {}
+        quotes = out.get("quotes") or []
+        total = out.get("total") if total is None else total
+        for q in quotes:
+            r = world_row(q, market)
+            if r and r["symbol"] not in rows:
+                r["sector"] = sectors.get(r["symbol"])
+                rows[r["symbol"]] = r
+        if len(quotes) < SCREEN_PAGE or (total is not None and (page + 1) * SCREEN_PAGE >= total):
+            break
+    if not rows:
+        raise RuntimeError(f"No listings for {WORLD_MARKETS[market][1]}")
+    logger.info("%s: %d stocks (of %s on the exchange)", WORLD_MARKETS[market][1], len(rows), total)
+    return list(rows.values())
+
+
 # ------------------------------------------------------------- Registry
 
 # key -> (market, fetcher, ttl)
@@ -909,6 +1048,7 @@ PROVIDERS: dict[str, tuple[str, Callable[[], list[dict]], timedelta]] = {
     "china_a": ("china_a", fetch_china_a, timedelta(hours=4)),
     "hong_kong": ("hong_kong", fetch_hong_kong, timedelta(hours=4)),
     "crypto": ("crypto", fetch_crypto, timedelta(minutes=10)),
+    **{m: (m, (lambda m=m: fetch_world(m)), timedelta(minutes=30)) for m in WORLD_MARKETS},
 }
 
 MARKET_LABELS = {
@@ -917,6 +1057,7 @@ MARKET_LABELS = {
     "china_a": "China A",
     "hong_kong": "Hong Kong",
     "crypto": "Crypto",
+    **{m: v[1] for m, v in WORLD_MARKETS.items()},
 }
 
 

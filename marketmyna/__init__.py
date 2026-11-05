@@ -4,7 +4,7 @@ A comprehensive tool for stock market analysis, portfolio management,
 and investment insights across US, Global, Indian markets, and Crypto.
 """
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 __author__ = "MarketMyna Team"
 
 # Every process that imports the app (API, scheduled run, report workers) masks

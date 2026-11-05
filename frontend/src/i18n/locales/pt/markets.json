@@ -43,6 +43,14 @@
       "hint": "Tudo acima em uma lista"
     }
   },
+  "worldPicker": {
+    "label": "Mercado",
+    "every": "Todos os mercados",
+    "search": "Pesquisar um mercado…",
+    "hint": "Todas as ações desta bolsa",
+    "allHint": "Índia, EUA, China A, Hong Kong, cripto e mais mercados numa lista",
+    "none": "Nenhum mercado encontrado"
+  },
   "types": {
     "all": "Todos",
     "stock": "Ações",
@@ -197,6 +205,14 @@
       "hot_invest": {
         "label": "Em destaque",
         "inline": "em destaque"
+      },
+      "watch": {
+        "label": "Ações para acompanhar",
+        "inline": "ações para acompanhar"
+      },
+      "ideas": {
+        "label": "Novas ideias de ações",
+        "inline": "novas ideias de ações"
       },
       "pulse": {
         "label": "Pulso do mercado",

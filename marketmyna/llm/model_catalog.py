@@ -131,12 +131,6 @@ def suggest_replacement(model: str, ids: Iterable[str], exclude: Iterable[str] =
     return f"{provider}/{pick}" if provider else pick
 
 
-def tier_of(model_id: str) -> tuple:
-    """Family and tier: ('gemini', {'flash', 'lite'}); sizes ('70b') count too."""
-    w = _words(model_id.rsplit("/", 1)[-1])
-    return (w[0] if w else "", frozenset(set(w) & TIER_WORDS), _size(model_id))
-
-
 def _size(model_id: str) -> tuple[str, ...]:
     return tuple(re.findall(r"(?<![a-z\d])(\d+b)(?![a-z])", model_id.lower()))
 

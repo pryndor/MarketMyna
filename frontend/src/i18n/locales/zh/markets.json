@@ -39,6 +39,14 @@
       "hint": "以上全部合并为一个列表"
     }
   },
+  "worldPicker": {
+    "label": "市场",
+    "every": "所有市场",
+    "search": "搜索市场…",
+    "hint": "该交易所的全部股票",
+    "allHint": "印度、美国、中国A股、香港、加密货币及更多市场，一个列表",
+    "none": "没有匹配的市场"
+  },
   "types": {
     "all": "全部",
     "stock": "股票",
@@ -193,6 +201,14 @@
       "hot_invest": {
         "label": "趋势",
         "inline": "趋势"
+      },
+      "watch": {
+        "label": "值得关注的股票",
+        "inline": "值得关注的股票"
+      },
+      "ideas": {
+        "label": "新股票想法",
+        "inline": "新股票想法"
       },
       "pulse": {
         "label": "市场脉搏",

@@ -15,6 +15,12 @@ SESSIONS = {
     "global": ("America/New_York", time(9, 30), time(16, 0)),
     "china_a": ("Asia/Shanghai", time(9, 30), time(15, 0)),
     "hong_kong": ("Asia/Hong_Kong", time(9, 30), time(16, 0)),
+    # More markets (under "All markets"); Tel Aviv trades Monday-Friday since January 2026.
+    "canada": ("America/Toronto", time(9, 30), time(16, 0)),
+    "uk": ("Europe/London", time(8, 0), time(16, 30)),
+    "australia": ("Australia/Sydney", time(10, 0), time(16, 0)),
+    "singapore": ("Asia/Singapore", time(9, 0), time(17, 0)),
+    "israel": ("Asia/Jerusalem", time(10, 0), time(17, 25)),
 }
 
 
@@ -32,7 +38,8 @@ def timezone_of(market: str) -> str:
 
 
 EXCHANGE_NAMES = {"india": "NSE", "us": "US market", "global": "US market", "china_a": "Shanghai/Shenzhen",
-                  "hong_kong": "HKEX", "crypto": "Crypto"}
+                  "hong_kong": "HKEX", "crypto": "Crypto", "canada": "TSX", "uk": "London Stock Exchange",
+                  "australia": "ASX", "singapore": "SGX", "israel": "Tel Aviv Stock Exchange"}
 # How late free quotes are, for the chart's status line.
 QUOTE_DELAY = {"crypto": "live", "us": "usually real-time", "global": "up to 15 min delayed",
                "india": "can be up to 15 min delayed", "china_a": "up to 15 min delayed", "hong_kong": "about 15 min delayed"}

@@ -20,6 +20,18 @@ export const MARKETS: Option[] = [
   { value: 'global', label: 'Global', hint: 'Any global ticker, e.g. SHEL.L or 7203.T' },
 ]
 
+/** Markets listed under "All markets" with a picker instead of their own tab
+ * (marketmyna/data/listings.py WORLD_MARKETS). Their stocks open on Analyze as "global". */
+export const WORLD_MARKETS: Option[] = [
+  { value: 'canada', label: 'Canada', hint: 'Toronto Stock Exchange' },
+  { value: 'uk', label: 'UK', hint: 'London Stock Exchange' },
+  { value: 'australia', label: 'Australia', hint: 'ASX' },
+  { value: 'singapore', label: 'Singapore', hint: 'SGX' },
+  { value: 'israel', label: 'Israel', hint: 'Tel Aviv Stock Exchange' },
+]
+
+export const isWorldMarket = (market: string) => WORLD_MARKETS.some((m) => m.value === market)
+
 /** AI analysis depth (src/agent/orchestrator.py); each level adds to the one before. */
 export const MODES: Option[] = [
   { value: 'quick', label: 'Quick', hint: 'Fastest. Chart only: Technical → AI summary' },

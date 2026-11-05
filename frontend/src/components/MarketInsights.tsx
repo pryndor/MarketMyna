@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { InsightActive } from '../lib/insight'
+import { isWorldMarket } from '../lib/options'
 import { shows, useSection, type Section } from '../lib/section'
 import BigTradesCard from './BigTradesCard'
 import CentralBanks from './CentralBanks'
@@ -19,12 +20,13 @@ import MarketValuation from './MarketValuation'
 import RatesCard from './RatesCard'
 import ScreensCard from './ScreensCard'
 import SectorRotation from './SectorRotation'
+import WatchLists from './WatchLists'
 import WorldMarkets from './WorldMarkets'
 import { AreaLayout, NavGroup, NavItem } from './AreaNav'
 import { Card, type IconName } from './ui'
 
 type TabId =
-  | 'hot_trade' | 'hot_invest' | 'pulse' | 'rotation' | 'funds' | 'deals' | 'screens' | 'rates'
+  | 'hot_trade' | 'hot_invest' | 'watch' | 'ideas' | 'pulse' | 'rotation' | 'funds' | 'deals' | 'screens' | 'rates'
   | 'mood' | 'flows' | 'world' | 'valuation' | 'macro' | 'countries' | 'commodities' | 'oil'
 
 // Tab names (and the lower-case form for "Showing …") live in locales/<lang>/markets.json under "insights.tabs".
@@ -53,6 +55,11 @@ const TABS: Tab[] = [
     render: (m) => <HotStocks market={m} area="trader" /> },
   { id: 'hot_invest', group: 'stocks', section: 'investor', icon: 'star', except: ['all'],
     render: (m) => <HotStocks market={m} area="investor" /> },
+  // Stocks to watch (today / week / month) and new ideas; AI notes need an AI model.
+  { id: 'watch', group: 'stocks', icon: 'eye', markets: ['india', 'us', 'china_a', 'hong_kong'],
+    render: (m) => <WatchLists market={m} /> },
+  { id: 'ideas', group: 'stocks', icon: 'star', markets: ['india', 'us', 'china_a', 'hong_kong'],
+    render: (m) => <WatchLists market={m} ideas /> },
   { id: 'pulse', group: 'stocks', icon: 'analyze', except: ['all'],
     render: (m, onCategory) => <MarketPulse market={m} onCategory={onCategory} /> },
   { id: 'rotation', group: 'stocks', section: 'investor', icon: 'refresh', markets: ['india', 'us', 'china_a', 'hong_kong', 'crypto'],
@@ -84,7 +91,12 @@ const TABS: Tab[] = [
     render: (m) => <CrudeSensitivity market={INDIA.includes(m) ? 'india' : m} /> },
 ]
 
+// Markets picked under "All markets" (Canada, UK, ...) get the views that
+// don't depend on one market's data.
+const WORLD_VIEWS: TabId[] = ['world', 'macro', 'countries']
+
 function available(market: string, section: Section | null): Tab[] {
+  if (isWorldMarket(market)) return TABS.filter((t) => WORLD_VIEWS.includes(t.id) && shows(section, t.section))
   return TABS.filter(
     (t) => (!t.markets || t.markets.includes(market)) && !t.except?.includes(market) && shows(section, t.section),
   )

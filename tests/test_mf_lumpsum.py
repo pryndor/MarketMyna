@@ -1,5 +1,7 @@
 """Lumpsum window check: conditions measured against the fund's own history."""
 
+from datetime import datetime, timedelta
+
 import numpy as np
 import pandas as pd
 
@@ -60,6 +62,8 @@ def test_portfolio_funds_view(monkeypatch):
         "nav": 150.0, "nav_date": "01-Oct-2026"})
     monkeypatch.setattr(ml, "assess_fund", lambda code, category="", name="": {"status": "ok", "level": "watch"})
     monkeypatch.setattr(sip_days, "load", lambda market: {"120716": {"best_day": 12, "edge": "no_edge"}})
+    # XIRR runs to today, so the buy date moves with it.
+    three_years_ago = (datetime.now() - timedelta(days=round(3 * 365.25))).isoformat(timespec="seconds")
     summary = {
         "holdings": {
             "120716": {"symbol": "120716", "market": "mf", "quantity": 100, "cost_basis": 10000, "market_value": 15000,
@@ -67,7 +71,7 @@ def test_portfolio_funds_view(monkeypatch):
             "AAPL": {"symbol": "AAPL", "market": "us", "quantity": 1},
         },
         "transactions": [{"symbol": "120716", "transaction_type": "buy", "quantity": 100, "price": 100,
-                          "fees": 0, "date": "2023-10-01T12:00:00"}],
+                          "fees": 0, "date": three_years_ago}],
     }
     out = ml.portfolio_funds(summary)
     (f,) = out["funds"]

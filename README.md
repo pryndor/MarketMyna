@@ -45,8 +45,8 @@ no login, no plans and no limits: it has one owner (you), and every feature is o
     <td width="55%"><img src="https://raw.githubusercontent.com/pryndor/MarketMyna/main/docs/images/screener.webp" alt="Markets: every listing with the ethical filter and the insights menu"></td>
     <td width="45%" valign="top">
       <h3>🔎 Screeners and ethical screening</h3>
-      India (NSE, BSE, mutual funds, ETFs), US, China A-shares, Hong Kong and crypto, with ready-made
-      and custom screens. Ethical screening for stocks, mutual funds and ETFs: excluded businesses
+      India (NSE, BSE, mutual funds, ETFs), US, China A-shares, Hong Kong and crypto, plus Canada, UK,
+      Australia, Singapore and Israel under All markets, with ready-made and custom screens. Ethical screening for stocks, mutual funds and ETFs: excluded businesses
       (liquor, pornography, gambling and similar) are screened out, and debt and interest are shown as
       numbers so you decide. No verdicts.
     </td>
@@ -54,8 +54,9 @@ no login, no plans and no limits: it has one owner (you), and every feature is o
   <tr>
     <td width="45%" valign="top">
       <h3>🧭 Market insights</h3>
-      Sector and fund rotation, trending stocks, market mood, FII / DII flows, world markets, rates
-      and macro, all on one page.
+      A live index board for each market, stocks to watch today / this week / this month (each with
+      the numbers that put it on the list), sector and fund rotation, trending stocks, market mood,
+      FII / DII flows, world markets, rates and macro, all on one page.
     </td>
     <td width="55%"><img src="https://raw.githubusercontent.com/pryndor/MarketMyna/main/docs/images/sector-rotation.webp" alt="Sector rotation chart"></td>
   </tr>
@@ -72,7 +73,7 @@ no login, no plans and no limits: it has one owner (you), and every feature is o
 | | |
 | --- | --- |
 | 📈 **Charts and trading tools** | Candlestick charts and indicators, scanner, backtesting, options payoff, pairs trading, position sizing, trading journal |
-| 💼 **Portfolios and funds** | Holdings and returns, CAS import, fund overlap, SIP planner, XIRR |
+| 💼 **Portfolios and funds** | Holdings and returns, CAS import, fund overlap (monthly fund portfolio files downloaded automatically), SIP planner, XIRR |
 | 🔔 **Alerts and scheduled reports** | Telegram, email, browser push, Discord, Slack, Teams, ntfy and more, on any schedule you like. Reports carry a Bullish / Neutral / Bearish list from company figures (with the reasons), market overview, trending stocks and stocks matching your screen; Smart messaging sends a short message plus a PDF or Excel file |
 | 🔀 **Trader and Investor areas** | One switch flips the menus and pages between short-term trading tools and long-term investing |
 | 🌍 **Seven languages** | The whole app, with light and dark themes |

@@ -12,11 +12,17 @@ from pydantic import BaseModel
 
 from marketmyna.api.deps import get_config_dep, get_scheduler_service
 from marketmyna.core.compliance import mode as compliance_mode
+from marketmyna.data.categories import CATEGORIES
 from marketmyna.llm.channels import llm_configured
 from marketmyna.notifiers.dispatcher import NotificationDispatcher
-from marketmyna.data.categories import CATEGORIES
 from marketmyna.services import schedule_time
-from marketmyna.services.report import DEFAULT_SECTIONS, SECTION_AREAS, SMART_AI_TOP, clean_sections, section_catalog
+from marketmyna.services.report import (
+    DEFAULT_SECTIONS,
+    SECTION_AREAS,
+    SMART_AI_TOP,
+    clean_sections,
+    section_catalog,
+)
 from marketmyna.services.report_i18n import BUILTIN_LANGUAGES, LANGUAGES
 from marketmyna.services.schedule_config import (
     HOT_INVEST_MARKETS,

@@ -96,6 +96,10 @@ _SECTOR_MAP = {
     "finance": FINANCIALS,
     "health care": HEALTHCARE,
     "consumer discretionary": CONSUMER,
+    # The market data feed's sector names (Canada, UK, Australia, Singapore, Israel).
+    "consumer cyclical": CONSUMER,
+    "consumer defensive": CONSUMER,
+    "communication services": TELECOM_MEDIA,
     "consumer staples": CONSUMER,
     "industrials": INDUSTRIALS,
     "energy": ENERGY,

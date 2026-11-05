@@ -1,4 +1,5 @@
 import { apiClient } from './client'
+import { isWorldMarket } from '../lib/options'
 
 export type ListingType = 'stock' | 'etf' | 'mf' | 'crypto'
 
@@ -134,7 +135,9 @@ export async function getFundHistory(code: string, days = 3650): Promise<NavPoin
 /** Where a row opens: Analyze, in its Mutual funds section for a fund. */
 export function analyzeLink(row: Pick<Listing, 'symbol' | 'market'> & { type?: string }): string {
   if (row.type === 'mf') return `/analyze?view=funds&symbol=${encodeURIComponent(row.symbol)}&market=india`
-  return `/analyze?symbol=${encodeURIComponent(row.symbol)}&market=${encodeURIComponent(row.market)}`
+  // More markets (Canada, UK, ...) carry the exchange suffix and run as "global".
+  const market = isWorldMarket(row.market) ? 'global' : row.market
+  return `/analyze?symbol=${encodeURIComponent(row.symbol)}&market=${encodeURIComponent(market)}`
 }
 
 export interface MoverRow {
@@ -712,4 +715,62 @@ export interface TradingActivity {
 
 export async function getTradingActivity(symbol: string, market: string, signal?: AbortSignal): Promise<TradingActivity> {
   return (await apiClient.get<TradingActivity>('/listings/activity', { params: { symbol, market }, signal })).data
+}
+
+// ------------------------------------------------- stocks to watch / ideas
+
+export type WatchPeriod = 'day' | 'week' | 'month' | 'ideas'
+
+export interface WatchRow {
+  symbol: string
+  name: string | null
+  market: string
+  price: number | null
+  change_percent: number | null
+  currency: string | null
+  sector: string | null
+  market_cap: number | null
+  why: string
+  /** Highest / lowest close of the 20 sessions before today: the levels to watch. */
+  watch_high: number | null
+  watch_low: number | null
+  r5d: number | null
+  r21d: number | null
+  rsi: number | null
+  /** Ideas: not on any ideas list a week ago. */
+  new: boolean
+  /** Ideas: first day seen on the lists (kept 60 days). */
+  since: string | null
+}
+
+export interface WatchBoard {
+  key: string
+  title: string
+  description: string
+  rows: WatchRow[]
+}
+
+export interface WatchLists {
+  market: string
+  period: WatchPeriod
+  boards: WatchBoard[]
+  universe: string
+  as_of: string
+  live?: LiveInfo | null
+}
+
+export interface WatchNotes {
+  summary: string
+  stocks: Record<string, string>
+  at: string
+}
+
+/** Stocks to watch today / this week / this month, or new stock ideas (api/v1/endpoints/listings.py). */
+export async function getWatchLists(market: string, period: WatchPeriod, signal?: AbortSignal): Promise<WatchLists> {
+  return (await apiClient.get<WatchLists>('/listings/watch', { params: { market, period }, signal, timeout: 150_000 })).data
+}
+
+/** AI notes on one list (needs an AI model: a key in Settings, or LLM_MODEL). */
+export async function getWatchNotes(market: string, period: WatchPeriod, board: string): Promise<WatchNotes> {
+  return (await apiClient.post<WatchNotes>('/listings/watch/notes', { market, period, board }, { timeout: 180_000 })).data
 }

@@ -60,11 +60,3 @@ def fund_snapshot(code: str) -> Optional[dict]:
         "return_1y": _return_since(points, 365),
     }
 
-
-def fund_snapshots(codes) -> list[dict]:
-    out = []
-    for code in dict.fromkeys(str(c).strip() for c in codes or [] if str(c).strip()):
-        snap = fund_snapshot(code)
-        if snap:
-            out.append(snap)
-    return out

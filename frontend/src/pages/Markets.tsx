@@ -8,10 +8,12 @@ import { Alert, Button, Card, EmptyState, Icon, Input, PageHeader, Segmented, Se
 import { cx } from '../lib/cx'
 import { ETHICAL_BADGE } from '../lib/ethical'
 import { compact, errorMessage, marketCap, pct, price, relativeTime, trendClass } from '../lib/format'
-import { labelFor, MARKETS, type Option } from '../lib/options'
+import { isWorldMarket, labelFor, MARKETS, WORLD_MARKETS, type Option } from '../lib/options'
 import { toast } from '../lib/toast'
 import RangeBar from '../components/RangeBar'
 import LiveBadge from '../components/LiveBadge'
+import MarketSwitch from '../components/MarketSwitch'
+import IndexBoard from '../components/IndexBoard'
 import { useLiveQuotes } from '../lib/liveQuotes'
 import MarketArea from '../components/MarketInsights'
 import ExportMenu from '../components/ExportMenu'
@@ -34,6 +36,7 @@ const TYPES_BY_MARKET: Record<string, ListingType[]> = {
   hong_kong: ['all', 'stock', 'etf'],
   crypto: ['crypto'],
   all: ['all', 'stock', 'etf', 'mf', 'crypto'],
+  ...Object.fromEntries(WORLD_MARKETS.map((m) => [m.value, ['stock']])),
 }
 
 const PAGE_SIZE = 50
@@ -228,7 +231,9 @@ export default function MarketsPage() {
           { key: 'range', label: t('col.range'), className: 'hidden xl:table-cell' },
         ]),
   ]
-  const english = useEnglishNames(market === 'all' ? 'china_a' : market, live.rows.filter((r) => r.market === 'china_a'))
+  // Only China A rows are sent, so look them up as China A whatever tab is on
+  // (right after a tab switch the table can still hold the last tab's rows).
+  const english = useEnglishNames('china_a', live.rows.filter((r) => r.market === 'china_a'))
   const chinese = live.rows.some((r) => hasChinese(r.name))
 
   /** Excel-style filter menu for a column header (null = not filterable). */
@@ -248,7 +253,9 @@ export default function MarketsPage() {
         {body}
       </HeaderFilter>
     )
-    const currencyUnit = market === 'india' ? '₹' : market === 'us' || market === 'crypto' ? '$' : market === 'hong_kong' ? 'HK$' : market === 'china_a' ? '¥' : undefined
+    const currencyUnit =
+      market === 'india' ? '₹' : market === 'us' || market === 'crypto' ? '$' : market === 'hong_kong' ? 'HK$' : market === 'china_a' ? '¥'
+        : ({ canada: 'C$', uk: '£', australia: 'A$', singapore: 'S$', israel: '₪' } as Record<string, string>)[market]
     switch (c.key) {
       case 'name':
         return header(Boolean(q), (close) => (
@@ -362,7 +369,12 @@ export default function MarketsPage() {
   /** A new market starts the list fresh: type, industry, sort and every filter reset. */
   const changeMarket = (m: string) =>
     update({ market: m, type: null, sector: null, sort: null, order: null, plan: null, option: null, ...CLEAR_FILTERS })
-  const marketName = (m: string) => (LISTING_MARKETS.includes(m as ListingMarket) ? t(`marketTabs.${m as ListingMarket}.label`) : labelFor(MARKETS, m))
+  const marketName = (m: string) =>
+    LISTING_MARKETS.includes(m as ListingMarket)
+      ? t(`marketTabs.${m as ListingMarket}.label`)
+      : isWorldMarket(m)
+        ? labelFor(WORLD_MARKETS, m)
+        : labelFor(MARKETS, m)
   const marketOptions: Option[] = LISTING_MARKETS.map((m) => ({ value: m, label: t(`marketTabs.${m}.label`), hint: t(`marketTabs.${m}.hint`) }))
   const typeOptions: Option[] = types.map((x) => {
     const count = x === 'all' ? undefined : data?.facets.types[x as keyof ListingPage['facets']['types']]
@@ -445,8 +457,17 @@ export default function MarketsPage() {
       {/* One market switch and one Ethical switch drive the views and the listings below. */}
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div className="flex flex-wrap items-start gap-3">
-          <Segmented options={marketOptions} value={market} onChange={changeMarket} showHint />
-          {(chinese || market === 'china_a') && <EnglishToggle loading={english.loading} className="mt-1" />}
+          <MarketSwitch
+            tabs={marketOptions.filter((o) => o.value !== 'all')}
+            allValue={{ ...marketOptions.find((o) => o.value === 'all')!, hint: t('worldPicker.allHint', { defaultValue: 'India, US, China A, Hong Kong, crypto and more markets in one list' }) }}
+            more={WORLD_MARKETS}
+            pickedNote={t('worldPicker.hint', { defaultValue: 'Every stock on this exchange' })}
+            value={market}
+            onChange={changeMarket}
+            everyLabel={t('worldPicker.every', { defaultValue: 'Every market' })}
+            searchPlaceholder={t('worldPicker.search', { defaultValue: 'Search a market…' })}
+            noMatch={t('worldPicker.none', { defaultValue: 'No market matches' })}
+          />
         </div>
         {shariahScreened && (
           <div
@@ -474,6 +495,8 @@ export default function MarketsPage() {
           </div>
         )}
       </div>
+
+      <IndexBoard market={market} />
 
       <MarketArea
         market={market}
@@ -516,6 +539,8 @@ export default function MarketsPage() {
             >
               {t('filtersButton')}{filterCount ? ` · ${filterCount}` : ''}
             </Button>
+            {/* Chinese company names on screen: switch them to English or back. */}
+            {chinese && <EnglishToggle loading={english.loading} />}
             {(filterCount > 0 || q || sector || plan || option) && (
               <Button variant="ghost" icon="x" onClick={clearAll} title={t('clearTitle')}>
                 {t('clear')}

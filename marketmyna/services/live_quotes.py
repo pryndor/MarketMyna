@@ -30,7 +30,13 @@ REFRESH = {
     "china_a": float(os.environ.get("LIVE_REFRESH_CHINA_A", 30)),
     "hong_kong": float(os.environ.get("LIVE_REFRESH_HONG_KONG", 30)),
     "crypto": float(os.environ.get("LIVE_REFRESH_CRYPTO", 2)),
+    # More markets under "All markets" (marketmyna/data/listings.py WORLD_MARKETS).
+    **{m: float(os.environ.get(f"LIVE_REFRESH_{m.upper()}", 30))
+       for m in ("canada", "uk", "australia", "singapore", "israel")},
 }
+# The 1-minute feed quotes London in pence and Tel Aviv in agorot; the
+# listings show pounds and shekels.
+MINOR_UNITS = {"uk": 100.0, "israel": 100.0}
 # With a broker feed (Angel One) Indian prices refresh every second.
 BROKER_REFRESH = float(os.environ.get("LIVE_REFRESH_BROKER", 1))
 WATCH_SECONDS = 60  # a symbol nobody asked about for a minute stops being fetched
@@ -246,6 +252,13 @@ def _fetch_crypto(symbols: list[str]) -> dict[str, dict]:
     return out
 
 
+def _minor_divisor(market: str, ticker: str) -> float:
+    """London (.L) and Tel Aviv (.TA) lines quote in pence / agorot."""
+    if market in MINOR_UNITS and ticker.endswith((".L", ".TA")):
+        return MINOR_UNITS[market]
+    return 1.0
+
+
 def _fetch_yahoo(symbols: list[str], market: str) -> dict[str, dict]:
     """One batched 1-minute download for every watched symbol: last trade,
     change against the previous session's close, and today's volume."""
@@ -275,8 +288,9 @@ def _fetch_yahoo(symbols: list[str], market: str) -> dict[str, dict]:
         last_day = frame.index[-1].date()
         today = frame[frame.index.date == last_day]
         before = frame[frame.index.date < last_day]
-        price = float(today["Close"].iloc[-1])
-        prev = float(before["Close"].iloc[-1]) if not before.empty else None
+        div = _minor_divisor(market, yt)
+        price = float(today["Close"].iloc[-1]) / div
+        prev = float(before["Close"].iloc[-1]) / div if not before.empty else None
         change = price - prev if prev else None
         out[sym] = {
             "price": round(price, 4),

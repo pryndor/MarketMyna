@@ -254,7 +254,8 @@ def _stock_block(r: dict, sections: list[str], lang: str, multi_market: bool) ->
     quote = r.get("quote") or {}
     extras = r.get("extras") or {}
     cur = CURRENCY_SYMBOLS.get(r["market"], "")
-    from .outlook import EMOJI, outlook as figures_view
+    from .outlook import EMOJI
+    from .outlook import outlook as figures_view
 
     # The stock's Bullish / Neutral / Bearish view: from its fundamentals and trend,
     # else the AI's outlook; never a call, target or stop.
@@ -547,7 +548,8 @@ def _outlook_lines(results: list[dict], lang: str) -> list[str]:
     """The Bullish / Neutral / Bearish list: from each stock's fundamentals and
     trend, with the figures behind it (marketmyna/services/outlook.py); a stock
     without those figures uses the AI's outlook. Never a buy / hold / sell call."""
-    from .outlook import EMOJI, outlook as figures_view, why
+    from .outlook import EMOJI, why
+    from .outlook import outlook as figures_view
 
     groups: dict[str, list[tuple[str, str]]] = {"bullish": [], "neutral": [], "bearish": []}
     missing = []

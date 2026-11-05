@@ -119,13 +119,33 @@ def _header(df: pd.DataFrame) -> Optional[tuple[int, dict[str, int]]]:
 
 def _scheme_title(df: pd.DataFrame, header_row: int) -> tuple[str, Optional[str]]:
     title, as_of = "", None
+    labelled = ""  # a "Scheme name :" label cell's value in the next cell wins (SBI's layout)
     for i in range(header_row):
-        for v in df.iloc[i].tolist():
-            t = _text(v)
+        cells = df.iloc[i].tolist()
+        texts = [_text(v) for v in cells]
+        for j, t in enumerate(texts):
             if not t:
                 continue
+            nxt = next((k for k in range(j + 1, len(texts)) if texts[k]), None)
+            if nxt is not None and re.fullmatch(r"scheme\s*name\s*:?", t, re.I) and not labelled:
+                labelled = texts[nxt]
+            one = re.fullmatch(r"scheme\s*(?:name)?\s*:\s*(.+)", t, re.I)  # "SCHEME: UTI - ..." (UTI's layout)
+            if one and not labelled:
+                labelled = one.group(1)
+            num = re.search(r"\b(as on|as of|as at)\b\D{0,3}(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})", t, re.I)
+            if num and as_of is None:
+                try:
+                    as_of = datetime(int(num.group(4)), int(num.group(3)), int(num.group(2))).date().isoformat()
+                except ValueError:
+                    pass
+            if nxt is not None and as_of is None and re.search(r"\b(as on|as at)\s*:?$", t, re.I):
+                v = cells[nxt]
+                if isinstance(v, (datetime, pd.Timestamp)):
+                    as_of = v.date().isoformat()
+                elif re.fullmatch(r"\d{4}-\d{2}-\d{2}( 00:00:00)?", texts[nxt]):
+                    as_of = texts[nxt][:10]
             m = re.search(r"(\d{1,2})(?:st|nd|rd|th)?[\s\-/.,]*([A-Za-z]{3,9})[\s\-/.,]*(\d{4})", t) or \
-                re.search(r"([A-Za-z]{3,9})\s+(\d{1,2}),?\s+(\d{4})", t)
+                re.search(r"([A-Za-z]{3,9})\s+(\d{1,2}),?\s*(\d{4})", t)
             if m and as_of is None and re.search(r"as on|as at|portfolio|statement", t, re.I):
                 parts = m.groups()
                 day, mon, yr = (parts[1], parts[0], parts[2]) if parts[0].isalpha() else parts
@@ -138,8 +158,9 @@ def _scheme_title(df: pd.DataFrame, header_row: int) -> tuple[str, Optional[str]
             if not title and not re.search(r"portfolio statement|monthly portfolio|as on|as at|^scheme name\s*:?$", t, re.I) \
                     and re.search(r"fund|scheme|plan|etf", t, re.I):
                 title = re.sub(r"^scheme name\s*:?\s*", "", t, flags=re.I)
+    title = labelled or title
     title = re.sub(r"\s*\((?:an |a )?open[- ]ended.*$", "", title, flags=re.I)
-    title = re.sub(r"\s*\(.*?\)\s*$", "", title).strip(" -:")
+    title = re.sub(r"\s*\(.*?\)\s*$", "", title).strip(" -:.")
     return title, as_of
 
 
@@ -156,6 +177,7 @@ def parse_sheet(df: pd.DataFrame, sheet: str = "") -> Optional[dict]:
         row = df.iloc[i].tolist()
         get = lambda k: row[cols[k]] if k in cols and cols[k] < len(row) else None  # noqa: E731
         name, isin = _text(get("name")), _text(get("isin")).upper()
+        name = re.sub(r"^(?:EQ|EQUITY)\s*-\s*", "", name)  # UTI writes "EQ - ICICI BANK LTD"
         label = name or " ".join(_text(v) for v in row if _text(v))
         if STOP.search(label):
             if re.search(r"grand total", label, re.I):
@@ -205,7 +227,25 @@ def _frames(data: bytes, filename: str = "") -> list[tuple[str, pd.DataFrame]]:
         book = {f"Table {i + 1}": t for i, t in enumerate(pd.read_html(io.BytesIO(data), header=None))}
     else:
         raise ValueError("Not an Excel file")
-    return list(book.items())
+    out = []
+    for name, df in book.items():
+        out += _split_stacked(str(name), df)
+    return out
+
+
+_STACK_START = re.compile(r"SCHEME\s*CODE\s*(\w+?)\s*STARTS", re.I)
+
+
+def _split_stacked(name: str, df: pd.DataFrame) -> list[tuple[str, pd.DataFrame]]:
+    """UTI stacks every scheme in one sheet between "SCHEME CODE002STARTS" and
+    "...ENDS" rows; cut those into one frame per scheme. Other sheets pass through."""
+    first = [str(v) for v in df.iloc[:, 0].tolist()] if df.shape[1] else []
+    starts = [i for i, v in enumerate(first) if _STACK_START.search(v)]
+    if len(starts) < 2:
+        return [(name, df)]
+    bounds = starts + [len(df)]
+    return [(f"{name} {_STACK_START.search(first[a]).group(1)}", df.iloc[a:b].reset_index(drop=True))
+            for a, b in zip(bounds, bounds[1:])]
 
 
 def _is_plain_zip(data: bytes) -> bool:
@@ -592,9 +632,160 @@ def _ppfas(fetch: Callable[[str], bytes]) -> list[tuple[bytes, str]]:
     return [(fetch(base + l), l) for l in (combined or month)]
 
 
+def _parse_day(day: str, month: str, year: str) -> Optional[datetime]:
+    """'30', 'Sep' / 'September' / 'Sept', '26' / '2026' -> date, or None."""
+    year = year if len(year) == 4 else "20" + year
+    month = month[:3]
+    try:
+        return datetime.strptime(f"{int(day)} {month} {year}", "%d %b %Y")
+    except ValueError:
+        return None
+
+
+def _nippon(fetch: Callable[[str], bytes]) -> list[tuple[bytes, str]]:
+    """One workbook per month: NIMF-MONTHLY-PORTFOLIO-30-Sep-26.xls (the
+    fortnightly files on the same page are skipped)."""
+    base = "https://mf.nipponindiaim.com"
+    page = fetch(base + "/investor-service/downloads/factsheet-portfolio-and-other-disclosures").decode("utf-8", "ignore")
+    dated = []
+    for link in re.findall(r'href="([^"]*NIMF-MONTHLY-PORTFOLIO-[^"]+\.xlsx?)"', page, re.I):
+        m = re.search(r"PORTFOLIO-(\d{1,2})-([A-Za-z]{3,9})-(\d{2,4})\.", link, re.I)
+        when = _parse_day(*m.groups()) if m else None
+        if when:
+            dated.append((when, link))
+    if not dated:
+        raise ValueError("No monthly portfolio link on the Nippon India page")
+    link = max(dated)[1]
+    url = link if link.startswith("http") else base + link
+    return [(fetch(url), link.rsplit("/", 1)[-1])]
+
+
+UA = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126 Safari/537.36"
+MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September",
+               "October", "November", "December"]
+
+
+def _browser_session(page: str):
+    """A requests session that has opened `page` first, so sites whose firewall
+    wants the page's cookies (SBI) accept the follow-up calls."""
+    import requests
+
+    sess = requests.Session()
+    sess.headers.update({"User-Agent": UA})
+    sess.get(page, timeout=60).raise_for_status()
+    return sess
+
+
+def _sbi(fetch: Callable[[str], bytes], post: Optional[Callable[[str, dict], bytes]] = None) -> list[tuple[bytes, str]]:
+    """SBI lists a month's files through its site's own JSON calls; the one
+    "all schemes monthly portfolio" workbook holds every scheme."""
+    base = "https://www.sbimf.com"
+    if post is None:
+        sess = _browser_session(base + "/portfolios")
+        headers = {"Content-Type": "application/json;charset=utf-8", "Origin": base,
+                   "Referer": base + "/portfolios", "X-Requested-With": "XMLHttpRequest"}
+
+        def post(path: str, body: dict) -> bytes:  # noqa: F811
+            r = sess.post(base + path, data=json.dumps(body), headers=headers, timeout=60)
+            r.raise_for_status()
+            return r.content
+
+        def fetch(url: str) -> bytes:  # noqa: F811
+            r = sess.get(url, timeout=120)
+            r.raise_for_status()
+            return r.content
+
+    year = datetime.now().year
+    for yr in (year, year - 1):
+        months = json.loads(post("/ajaxcall/CMS/GetMonthsByYear", {"year": str(yr), "folder": "Scheme Portfolios"}) or b"[]")
+        for month in sorted(months, key=lambda m: MONTH_NAMES.index(m) if m in MONTH_NAMES else -1, reverse=True):
+            html = post("/ajaxcall/CMS/GetSchemePortfolioSheets",
+                        {"FundId": 0, "PSYear": str(yr), "PSMonth": month, "PSFrequency": "Monthly"}).decode("utf-8", "ignore")
+            links = re.findall(r'href="([^"]*all-schemes-monthly-portfolio[^"]*\.xlsx?[^"]*)"', html, re.I)
+            if links:
+                url = links[0] if links[0].startswith("http") else base + links[0]
+                return [(fetch(url), url.split("?")[0].rsplit("/", 1)[-1])]
+    raise ValueError("No all-schemes monthly portfolio on the SBI site")
+
+
+def _date_in_name(name: str) -> Optional[datetime]:
+    """The month-end date in a file name, in the styles fund houses use:
+    30-september-2026, 31_aug_2026, 31march2026, february-28-2026."""
+    low = name.lower()
+    m = re.search(rf"(\d{{1,2}})[-_ ]?({MONTHS}|[a-z]{{3,4}})[-_ ]?(\d{{4}})", low)
+    if m:
+        return _parse_day(*m.groups())
+    m = re.search(rf"({MONTHS}|[a-z]{{3,4}})[-_ ](\d{{1,2}})[-_ ,]+(\d{{4}})", low)
+    return _parse_day(m.group(2), m.group(1), m.group(3)) if m else None
+
+
+def _dsp(fetch: Callable[[str], bytes]) -> list[tuple[bytes, str]]:
+    """A zip of every scheme's month-end workbook (the fortnightly debt files on
+    the same page are skipped)."""
+    page = fetch("https://www.dspim.com/mandatory-disclosures/portfolio-disclosures").decode("utf-8", "ignore")
+    dated = []
+    for link in re.findall(r'href="([^"]*monthend-portfolio[^"]*\.zip)"', page, re.I):
+        when = _date_in_name(link.rsplit("/", 1)[-1])
+        if when:
+            dated.append((when, link))
+    if not dated:
+        raise ValueError("No month-end portfolio zip on the DSP page")
+    link = max(dated)[1]
+    return [(fetch(link), link.rsplit("/", 1)[-1])]
+
+
+def _uti(fetch: Callable[[str], bytes]) -> list[tuple[bytes, str]]:
+    """The site's own JSON list of consolidated month-end zips, one per month."""
+    year = datetime.now().year
+    for yr in (year, year - 1):
+        rows = json.loads(fetch(f"https://www.utimf.com/api/get-consolidate-portfolio-disclosure?year={yr}") or b"{}")
+        rows = [r for r in rows.get("rows", []) if r.get("month") in MONTH_NAMES and (r.get("url") or r.get("doc"))]
+        if rows:
+            latest = max(rows, key=lambda r: MONTH_NAMES.index(r["month"]))
+            url = latest.get("url") or latest["doc"]
+            return [(fetch(url), url.split("?")[0].rsplit("/", 1)[-1])]
+    raise ValueError("No consolidated portfolio in the UTI list")
+
+
+def _post_json(url: str, body: dict, referer: str) -> bytes:
+    import requests
+
+    r = requests.post(url, data=json.dumps(body), timeout=60, headers={
+        "User-Agent": UA, "Content-Type": "application/json;charset=utf-8", "Referer": referer,
+        "X-Requested-With": "XMLHttpRequest"})
+    r.raise_for_status()
+    return r.content
+
+
+def _mirae(fetch: Callable[[str], bytes], post: Optional[Callable[[str, dict], bytes]] = None) -> list[tuple[bytes, str]]:
+    """One workbook per scheme, listed by the site's own downloads service;
+    takes every scheme file of the newest "as on" date."""
+    base = "https://www.miraeassetmf.co.in"
+    post = post or (lambda path, body: _post_json(base + path, body, base + "/downloads/portfolios"))
+    raw = json.loads(post("/AjaxService/GetDownloadsData",
+                          {"request": {"modulename": "portfolio_tab1", "pgno": 1, "pgsize": 400}}))
+    rows = (raw.get("d", raw) or {}).get("Data") or []
+    dated = []
+    for r in rows:
+        m = re.search(r"as on (\d{1,2})(?:st|nd|rd|th)? ([A-Za-z]+),? (\d{4})", r.get("Title") or "", re.I)
+        when = _parse_day(*m.groups()) if m else None
+        if when and re.search(r"\.xlsx?$", r.get("URL") or "", re.I):
+            dated.append((when, r["URL"]))
+    if not dated:
+        raise ValueError("No scheme portfolios in the Mirae Asset list")
+    latest = max(d for d, _ in dated)
+    links = sorted({u for d, u in dated if d == latest})
+    return [(fetch(u if u.startswith("http") else base + u), u.rsplit("/", 1)[-1]) for u in links]
+
+
 # Fund house (as named in the AMFI scheme list) -> downloader for its latest month.
 AUTO_SOURCES: dict[str, Callable[[Callable[[str], bytes]], list[tuple[bytes, str]]]] = {
     "PPFAS Mutual Fund": _ppfas,
+    "Nippon India Mutual Fund": _nippon,
+    "SBI Mutual Fund": _sbi,
+    "DSP Mutual Fund": _dsp,
+    "UTI Mutual Fund": _uti,
+    "Mirae Asset Mutual Fund": _mirae,
 }
 
 
@@ -636,7 +827,9 @@ def pair_overlap(a: Optional[dict], b: Optional[dict]) -> Optional[dict]:
         out: dict[str, dict] = {}
         for h in d.get("holdings", []):
             if h.get("kind") in ("equity", "foreign_equity") and h.get("weight"):
-                k = h.get("isin") or h.get("symbol") or h.get("name")
+                # Match on the exchange symbol first: index-fund holdings (estimated from the
+                # index list) have no ISIN, so ISIN-first keys never met and showed 0% overlap.
+                k = (h.get("symbol") or "").upper() or h.get("isin") or h.get("name")
                 cur = out.setdefault(k, {"name": h.get("name"), "symbol": h.get("symbol"), "weight": 0.0})
                 cur["weight"] += h["weight"]
         return out

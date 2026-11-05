@@ -84,7 +84,11 @@ export function marketCap(value: number | null | undefined, currency?: string | 
   return compact(value)
 }
 
-const SYMBOLS: Record<string, string> = { INR: '₹', USD: '$', CNY: '¥', HKD: 'HK$' }
+const SYMBOLS: Record<string, string> = {
+  INR: '₹', USD: '$', CNY: '¥', HKD: 'HK$',
+  // More markets under "All markets"
+  CAD: 'C$', GBP: '£', AUD: 'A$', SGD: 'S$', ILS: '₪',
+}
 
 export function price(value: number | null | undefined, currency?: string | null): string {
   if (value == null || !Number.isFinite(value)) return '—'

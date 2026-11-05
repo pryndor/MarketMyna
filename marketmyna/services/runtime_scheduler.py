@@ -45,8 +45,15 @@ from typing import Callable, Optional
 
 from ..core import tenant
 from .analysis_run import analyze_symbol, deliver_report, notify_failure
-from .schedule_config import (hot_invest_markets, ideas_market, ideas_markets, resolve_funds, ScheduleConfig,
-                              ScheduleConfigStore, resolve_targets)
+from .schedule_config import (
+    ScheduleConfig,
+    ScheduleConfigStore,
+    hot_invest_markets,
+    ideas_market,
+    ideas_markets,
+    resolve_funds,
+    resolve_targets,
+)
 
 logger = logging.getLogger(__name__)
 

@@ -37,7 +37,9 @@ from typing import Optional
 from zoneinfo import ZoneInfo
 
 from ..core.numbers import finite as _num
-from .outlook import NOTE as READING_NOTE  # shown on every general user's report: what the view is and is not
+from .outlook import (
+    NOTE as READING_NOTE,  # shown on every general user's report: what the view is and is not
+)
 
 logger = logging.getLogger(__name__)
 

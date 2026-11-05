@@ -21,7 +21,15 @@ import threading
 import time
 from typing import Optional
 
-from marketmyna.data.shariah import EXCLUDED, INTEREST, MIXED, ETHICAL, UNKNOWN, business_status, screen_row
+from marketmyna.data.shariah import (
+    ETHICAL,
+    EXCLUDED,
+    INTEREST,
+    MIXED,
+    UNKNOWN,
+    business_status,
+    screen_row,
+)
 
 from .financials import BALANCE_ROWS, _div, _extract, _num, _periods
 
