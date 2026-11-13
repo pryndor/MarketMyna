@@ -218,3 +218,34 @@ def test_index_card_and_tape(monkeypatch, home):
             assert app.look != tui.look.DEFAULT
 
     asyncio.run(go())
+
+
+def test_candle_chart_and_panels_render(home):
+    pytest.importorskip("textual")
+    from textual.app import App
+
+    from marketmyna.tui.widgets import ICON_ART, CandleChart, KVPanel, fmt, range_bar
+
+    assert all(len(rows) == 3 and all(len(r) == 5 for r in rows) for rows in ICON_ART.values())
+    assert fmt(5.16e12, "money") == "5.16T" and fmt(11.7, "pct") == "11.70%" and fmt(None) == "-"
+    assert len(range_bar(10, 20, 15, 21).plain) == 21
+
+    bars = [{"Date": f"2026-01-{i + 1:02d}", "open": 100 + i, "high": 103 + i, "low": 98 + i,
+             "close": 101 + i if i % 3 else 99 + i} for i in range(28)]
+
+    class Host(App):
+        def compose(self):
+            yield CandleChart(id="c")
+            yield KVPanel("TEST", id="k")
+
+    async def go():
+        app = Host()
+        async with app.run_test(size=(100, 30)) as pilot:
+            chart = app.query_one(CandleChart)
+            chart.set_bars(bars)
+            app.query_one(KVPanel).rows([("Open", "1.00")])
+            await pilot.pause(0.1)
+            text = chart.render().plain
+            assert "█" in text and "│" in text and "2026-01-01" in text
+
+    asyncio.run(go())

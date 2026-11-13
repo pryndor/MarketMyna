@@ -43,14 +43,15 @@ from textual.widgets import (
 from marketmyna.tui import look
 from marketmyna.tui.client import Api, ApiError
 from marketmyna.tui.look import PAL
+from marketmyna.tui.widgets import CandleChart, KVPanel, fmt, icon_art, range_bar, tone
 
 MARKETS = [("India", "india"), ("US", "us"), ("China A", "china_a"), ("Hong Kong", "hong_kong"), ("Crypto", "crypto")]
 MARKET_LABEL = {v: k for k, v in MARKETS}
 CURRENCY = {"india": "INR", "us": "USD", "china_a": "CNY", "hong_kong": "HKD", "crypto": "USD"}
 
-# (key, label, symbol icon, plain icon). Single-width symbols line up in every
-# terminal font. MARKETMYNA_TUI_ICONS=emoji swaps in colour emoji; =plain (or the
-# Linux text console, TERM=linux) uses ASCII.
+# (key, label, symbol icon, plain icon). The rail draws block-art pictures
+# (marketmyna/tui/widgets.py ICON_ART); MARKETMYNA_TUI_ICONS=symbols uses these
+# one-character symbols, =emoji colour emoji, =plain (or TERM=linux) ASCII.
 TABS = [
     ("markets", "Markets", "↗", "~"), ("stock", "Stock", "⌕", "?"), ("screener", "Screener", "≡", "#"),
     ("watchlists", "Watchlists", "★", "*"), ("portfolio", "Portfolio", "◔", "$"), ("alerts", "Alerts", "⚑", "!"),
@@ -62,18 +63,20 @@ MARKET_CODES = {"india": "IN", "us": "US", "china_a": "CN", "hong_kong": "HK", "
 
 
 def icon_set() -> str:
-    """'symbols' (default), 'emoji' or 'plain'."""
+    """'art' (default: 5x3 block pictures), 'symbols', 'emoji' or 'plain'."""
     import os
 
     want = os.environ.get("MARKETMYNA_TUI_ICONS", "").strip().lower()
     if want in ("plain", "ascii"):
         return "plain"
-    if want == "emoji":
-        return "emoji"
-    return "plain" if os.environ.get("TERM", "") == "linux" else "symbols"
+    if want in ("emoji", "symbols"):
+        return want
+    return "plain" if os.environ.get("TERM", "") == "linux" else "art"
 
 
 def icon(key: str, symbol: str, plain: str, kind: str) -> str:
+    if kind == "art":
+        return icon_art(key)
     return EMOJI[key] if kind == "emoji" else plain if kind == "plain" else symbol
 
 
@@ -368,40 +371,79 @@ class MarketsPane(Pane):
 
 # ---------------------------------------------------------------- 2 stock
 
-SECTIONS = [("Quote", "quote"), ("Overview", "overview"), ("Valuation", "valuation"), ("Financials", "financials"),
+SECTIONS = [("Dashboard", "dash"), ("Valuation", "valuation"), ("Financials", "financials"),
             ("Estimates", "estimates"), ("Dividends", "dividends"), ("Peers", "peers"), ("Ethical", "ethical"),
             ("AI analysis", "analyze")]
+PERIODS = [("1M", "1mo", "1d"), ("3M", "3mo", "1d"), ("6M", "6mo", "1d"), ("1Y", "1y", "1d"), ("5Y", "5y", "1wk")]
 
 
 class StockPane(Pane):
+    """A research-terminal stock page: quote strip, panels of figures, a candle chart."""
+
     symbol: str = ""
     symbol_market: str = ""
+    period = "6mo"
 
     def compose(self) -> ComposeResult:
         with Horizontal(classes="bar"):
             yield Input(placeholder="Symbol or company name, then Enter (e.g. RELIANCE, AAPL, Infosys)", id="sym")
             yield Static("", id="current", classes="status")
         yield table("matches", "Symbol", "Name", "Market", "Type", "Exchange", "Price", title="MATCHES")
-        with Horizontal(classes="buttons"):
+        yield Static("", id="qstrip")
+        with Horizontal(id="sections"):
             for label, key in SECTIONS:
-                yield Button(label, id=f"sec-{key}", classes="small")
-            yield Button("+ Watchlist", id="watch-add", classes="small", variant="primary")
-        yield RichLog(id="out", wrap=True, markup=False, highlight=False)
+                yield Button(label.upper(), id=f"sec-{key}", classes="tab")
+            yield Button("+ WATCHLIST", id="watch-add", variant="primary")
+        with ContentSwitcher(initial="dash", id="stock-view"):
+            with VerticalScroll(id="dash"):
+                with Horizontal(id="dash-top"):
+                    with Vertical(classes="dcol side"):
+                        yield KVPanel("TODAY'S TRADING", id="kv-today")
+                        yield KVPanel("VALUATION", id="kv-valuation")
+                        yield KVPanel("RISK", id="kv-risk")
+                    with Vertical(classes="dcol", id="chart-box"):
+                        with Horizontal(id="periods"):
+                            yield Label("PERIOD", classes="plabel")
+                            for label, period, _ in PERIODS:
+                                yield Button(label, id=f"per-{period}", classes="per")
+                            yield Static("", id="chart-note")
+                        yield CandleChart(id="chart")
+                        yield KVPanel("RETURNS", id="kv-returns")
+                    with Vertical(classes="dcol side"):
+                        yield KVPanel("52 WEEK RANGE", id="kv-range")
+                        yield KVPanel("PROFITABILITY", id="kv-profit")
+                        yield KVPanel("GROWTH", id="kv-growth")
+                        yield KVPanel("SIGNALS", id="kv-signals")
+                with Horizontal(id="dash-bottom"):
+                    yield Static("", id="about", classes="kv")
+                    yield KVPanel("COMPANY INFO", id="kv-info")
+            yield RichLog(id="out", wrap=True, markup=False, highlight=False)
 
     def on_mount(self) -> None:
         self.query_one("#out", RichLog).border_title = "EQUITY RESEARCH"
+        self.query_one("#about", Static).border_title = "COMPANY OVERVIEW"
+        self.query_one("#chart-box").border_title = "PRICE"
         self.query_one("#matches").display = False
-        out = self.query_one("#out", RichLog)
-        out.write("Look up any stock, ETF or fund: type a symbol or name and press Enter.\n"
-                  "Then pick a section above. AI analysis gives a bullish / neutral / bearish outlook,\n"
-                  "never a buy or sell call. It needs an AI key (Settings, key 9).")
+        self.query_one("#qstrip", Static).update(Text.assemble(
+            ("EQUITY RESEARCH  ", f"bold {PAL['heading']}"),
+            ("Type a symbol or company name above (or press : anywhere) and press Enter.", PAL["muted"])))
+        self._tabs("dash")
+        self._periods()
+
+    def _tabs(self, key: str) -> None:
+        for b in self.query("Button.tab"):
+            b.set_class(b.id == f"sec-{key}", "on")
+
+    def _periods(self) -> None:
+        for b in self.query("Button.per"):
+            b.set_class(b.id == f"per-{self.period}", "on")
 
     def open(self, symbol: str, market: str) -> None:
         self.symbol, self.symbol_market = symbol, market
         self.query_one("#sym", Input).value = symbol
         self.query_one("#matches").display = False
         self.query_one("#current", Static).update(f"{symbol} ({MARKET_LABEL.get(market, market)})")
-        self.run_section("overview")
+        self.run_section("dash")
 
     @on(Input.Submitted, "#sym")
     def _search(self, event: Input.Submitted) -> None:
@@ -447,6 +489,11 @@ class StockPane(Pane):
         bid = event.button.id or ""
         if bid.startswith("sec-"):
             self.run_section(bid[4:])
+        elif bid.startswith("per-"):
+            self.period = bid[4:]
+            self._periods()
+            if self.symbol:
+                self.fetch_chart(self.symbol, self.symbol_market, self.period)
         elif bid == "watch-add":
             self.add_to_watchlist()
 
@@ -454,7 +501,140 @@ class StockPane(Pane):
         if not self.symbol:
             self.app.notify("Look up a stock first.", title="MarketMyna")
             return
-        self.command(section, self.symbol, self.symbol_market)
+        self._tabs(section)
+        self.query_one("#stock-view", ContentSwitcher).current = "dash" if section == "dash" else "out"
+        if section == "dash":
+            self.dashboard(self.symbol, self.symbol_market)
+        else:
+            self.command(section, self.symbol, self.symbol_market)
+
+    # -- dashboard
+    def dashboard(self, symbol: str, market: str) -> None:
+        for panel in self.query(KVPanel):
+            panel.waiting()
+        self.query_one("#about", Static).update(Text("loading...", style=PAL["muted"]))
+        self.query_one("#chart", CandleChart).set_bars([], "loading chart...")
+        self.query_one("#qstrip", Static).update(Text.assemble(
+            (symbol, f"bold {PAL['fg']}"), ("  loading...", PAL["muted"])))
+        self.fetch_quote(symbol, market)
+        self.fetch_overview(symbol, market)
+        self.fetch_chart(symbol, market, self.period)
+
+    @work(thread=True, exclusive=True, group="stock-quote")
+    def fetch_quote(self, symbol: str, market: str) -> None:
+        try:
+            q = self.api.get(f"/stocks/{symbol}/quote", market=market)
+        except ApiError as exc:
+            self.ui(self.query_one("#qstrip", Static).update, Text(f"{symbol}: {exc}", style=PAL["flat"]))
+            return
+        self.ui(self._show_quote, symbol, market, q)
+
+    def _show_quote(self, symbol: str, market: str, q: dict) -> None:
+        if symbol != self.symbol:
+            return
+        chg, pct = q.get("change"), q.get("change_percent")
+        strip = Text.assemble(
+            (f" {symbol} ", f"bold {PAL['heading']}"), (f" {MARKET_LABEL.get(market, market).upper()}  ", PAL["muted"]),
+            (num(q.get("price")), f"bold {PAL['fg']}"), "  ", signed(chg, ""), "  ", signed(pct), "     ",
+            ("VOL ", PAL["muted"]), (compact(q.get("volume")), PAL["figure"]), "   ",
+            ("H ", PAL["muted"]), (num(q.get("day_high")), PAL["figure"]), "   ",
+            ("L ", PAL["muted"]), (num(q.get("day_low")), PAL["figure"]), "   ",
+            ("MCAP ", PAL["muted"]), (compact(q.get("market_cap")), PAL["figure"]))
+        self.query_one("#qstrip", Static).update(strip)
+        self.query_one("#kv-today", KVPanel).rows([
+            ("Open", num(q.get("open"))), ("High", Text(num(q.get("day_high")), style=PAL["up"])),
+            ("Low", Text(num(q.get("day_low")), style=PAL["down"])), ("Prev close", num(q.get("previous_close"))),
+            ("Volume", compact(q.get("volume"))), ("Change", signed(pct))])
+
+    @work(thread=True, exclusive=True, group="stock-overview")
+    def fetch_overview(self, symbol: str, market: str) -> None:
+        try:
+            o = self.api.get(f"/stocks/{symbol}/overview", market=market)
+        except ApiError as exc:
+            self.fail(exc)
+            return
+        self.ui(self._show_overview, symbol, o)
+
+    def _show_overview(self, symbol: str, o: dict) -> None:
+        if symbol != self.symbol:
+            return
+        f = o.get("fundamentals") or {}
+        groups = {g.get("title"): g.get("items", []) for g in f.get("groups", [])}
+
+        def rows(title: str, limit: int = 7) -> list[tuple[str, Any]]:
+            return [(i["label"], fmt(i.get("value"), i.get("kind", "ratio"))) for i in groups.get(title, [])[:limit]]
+
+        self.query_one("#kv-valuation", KVPanel).rows(rows("Valuation") or [("No data", "-")])
+        self.query_one("#kv-profit", KVPanel).rows(rows("Profitability") or [("No data", "-")])
+        self.query_one("#kv-growth", KVPanel).rows(
+            (rows("Growth") + rows("Dividend", 1)) or [("No data", "-")])
+
+        r = o.get("risk") or {}
+        self.query_one("#kv-risk", KVPanel).rows([
+            ("Level", Text(str(r.get("level") or "-").upper(), style=tone(r.get("level")))),
+            ("Volatility", fmt(r.get("volatility_pct"), "pct")), ("Beta", fmt(r.get("beta"))),
+            ("Max drawdown", Text(fmt(r.get("max_drawdown_pct"), "pct"), style=PAL["down"])),
+            ("Best day", Text(fmt(r.get("best_day_pct"), "pct"), style=PAL["up"])),
+            ("Worst day", Text(fmt(r.get("worst_day_pct"), "pct"), style=PAL["down"]))])
+
+        t = o.get("technical") or {}
+        hi, lo = t.get("high_52w"), t.get("low_52w")
+        rng: list[tuple[str, Any]] = [("High", Text(num(hi), style=PAL["up"])), ("Low", Text(num(lo), style=PAL["down"])),
+                                      ("Off high", Text(fmt(t.get("from_high_pct"), "pct"),
+                                                        style=tone(t.get("from_high_pct"))))]
+        bar = None
+        if hi and lo:
+            close = hi * (1 + (t.get("from_high_pct") or 0) / 100)
+            bar = Text.assemble(("L ", PAL["muted"]), range_bar(float(lo), float(hi), float(close), 28),
+                                (" H", PAL["muted"]))
+        self.query_one("#kv-range", KVPanel).rows(rng, footer=bar)
+
+        rets = t.get("returns") or {}
+        self.query_one("#kv-returns", KVPanel).update(Text.assemble(*[
+            part for k, v in rets.items() for part in ((f" {k} ", PAL["muted"]), signed(v), "   ")]) if rets
+            else Text("-", style=PAL["muted"]))
+
+        counts = t.get("counts") or {}
+        a = o.get("analysts") or {}
+        self.query_one("#kv-signals", KVPanel).rows([
+            ("Technical", Text(str(t.get("overall") or "-").upper(), style=f"bold {tone(t.get('overall'))}")),
+            ("Trend", Text(str(t.get("trend") or "-").upper(), style=tone(t.get("trend")))),
+            ("Signals", Text.assemble((f"▲{counts.get('buy', 0)}", PAL["up"]), " ",
+                                      (f"▼{counts.get('sell', 0)}", PAL["down"]), " ",
+                                      (f"■{counts.get('neutral', 0)}", PAL["muted"]))),
+            ("Brokers", Text(f"{str(a.get('recommendation') or '-').upper()} ({a.get('count') or 0})",
+                             style=tone(a.get("recommendation")))),
+            ("Health", Text(f"{f.get('score', '-')}/100 {str(f.get('health_rating') or '').upper()}",
+                            style=tone(f.get("health_rating"))))])
+
+        pr = o.get("profile") or {}
+        ev = o.get("events") or {}
+        self.query_one("#about", Static).update(Text.assemble(
+            (f"{pr.get('name') or symbol}\n", f"bold {PAL['fg']}"),
+            (str(pr.get("summary") or "No company description.")[:900], PAL["fg"])))
+        self.query_one("#kv-info", KVPanel).rows([
+            ("Sector", pr.get("sector") or "-"), ("Industry", (pr.get("industry") or "-")[:26]),
+            ("Country", pr.get("country") or "-"), ("Employees", fmt(pr.get("employees"), "int")),
+            ("Next earnings", ev.get("earnings_date") or "-"), ("Ex-dividend", ev.get("ex_dividend_date") or "-"),
+            ("Website", (pr.get("website") or "-").replace("https://", "")[:28])])
+
+    @work(thread=True, exclusive=True, group="stock-chart")
+    def fetch_chart(self, symbol: str, market: str, period: str) -> None:
+        interval = next((i for _, p, i in PERIODS if p == period), "1d")
+        try:
+            bars = self.api.get(f"/stocks/{symbol}/history", market=market, period=period, interval=interval)
+        except ApiError as exc:
+            self.ui(self.query_one("#chart", CandleChart).set_bars, [], str(exc))
+            return
+        if symbol != self.symbol:
+            return
+        self.ui(self.query_one("#chart", CandleChart).set_bars, bars or [])
+        label = next((lbl for lbl, p, _ in PERIODS if p == period), period)
+        if bars:
+            first, last = float(bars[0]["close"]), float(bars[-1]["close"])
+            self.ui(self.query_one("#chart-note", Static).update,
+                    Text.assemble(("   ", ""), signed((last / first - 1) * 100 if first else 0),
+                                  (f" over {label} · {len(bars)} bars", PAL["muted"])))
 
     @work(thread=True, exclusive=True, group="stock-run")
     def command(self, section: str, symbol: str, market: str) -> None:
@@ -1339,11 +1519,11 @@ class MarketMynaTUI(App):
     #tape { height: 1; background: $tape-bg; color: $muted; border-top: none; }
 
     /* icon rail */
-    #rail { width: 8; background: $rail-bg; border-right: tall $rail-edge; }
+    #rail { width: 9; background: $rail-bg; border-right: tall $rail-edge; }
     #rail-logo { height: 3; content-align: center middle; background: $bar-bg; color: $glow; text-style: bold; }
-    #sidebar { background: $rail-bg; color: $rail-fg; padding: 1 0; height: 1fr; }
-    #sidebar > ListItem { background: $rail-bg; color: $rail-fg; height: 3; }
-    #sidebar > ListItem Label { width: 100%; height: 3; content-align: center middle; text-style: bold; }
+    #sidebar { background: $rail-bg; color: $rail-fg; padding: 0 0; height: 1fr; }
+    #sidebar > ListItem { background: $rail-bg; color: $rail-fg; height: 4; }
+    #sidebar > ListItem Label { width: 100%; height: 4; content-align: center middle; text-style: bold; }
     #sidebar > ListItem:hover { background: $rail-hover; }
     #sidebar > ListItem.-highlight { background: $rail-hover; }
     #sidebar > ListItem.active { background: $rail-active-bg; color: $rail-active-fg; }
@@ -1376,6 +1556,33 @@ class MarketMynaTUI(App):
     .card Sparkline > .sparkline--min-color { color: $success 25%; }
     .card.down Sparkline > .sparkline--max-color { color: $error; }
     .card.down Sparkline > .sparkline--min-color { color: $error 25%; }
+
+    /* stock dashboard */
+    #qstrip { height: 3; padding: 1 1 0 1; background: $boost; border-bottom: solid $line; }
+    #sections { height: 2; padding: 1 1 0 1; }
+    #sections > Button { margin-right: 1; background: transparent; color: $muted; }
+    #sections > Button.on { color: $heading; background: $primary 18%; text-style: bold underline; }
+    #sections > Button.-primary { background: $primary; color: $background; }
+    #stock-view { height: 1fr; }
+    #dash { height: 1fr; }
+    #dash-top { height: 31; }
+    .dcol { height: 100%; }
+    .dcol.side { width: 38; }
+    #chart-box { width: 1fr; border: round $line; margin: 1 1 0 0; background: $panel-bg;
+                 border-title-color: $heading; border-title-style: bold; }
+    #periods { height: 1; }
+    .plabel { color: $muted; padding: 0 1; }
+    .per { margin-right: 1; background: transparent; color: $muted; min-width: 4; }
+    .per.on { background: $primary; color: $background; }
+    #chart-note { width: 1fr; }
+    #chart { height: 1fr; margin: 1 0 0 1; }
+    #kv-returns { height: 3; margin: 0; border: none; border-top: solid $line; background: $panel-bg; }
+    .kv { height: auto; margin: 1 1 0 1; padding: 0 1; border: round $line; background: $panel-bg;
+          border-title-color: $heading; border-title-style: bold; }
+    .dcol.side .kv { margin: 1 1 0 1; }
+    #dash-bottom { height: auto; }
+    #about { width: 1fr; }
+    #kv-info { width: 44; }
 
     /* panels */
     .bar { height: auto; padding: 0 1; }
