@@ -12,6 +12,7 @@ or stops, the same as everywhere else in MarketMyna.
 
 from __future__ import annotations
 
+import re
 import webbrowser
 from typing import Any, Callable
 
@@ -24,16 +25,16 @@ from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.suggester import SuggestFromList
 from textual.widgets import (
     Button,
+    ContentSwitcher,
     DataTable,
     Footer,
-    Header,
     Input,
     Label,
+    ListItem,
+    ListView,
     RichLog,
     Select,
     Static,
-    TabbedContent,
-    TabPane,
 )
 
 from marketmyna.tui.client import Api, ApiError
@@ -42,11 +43,42 @@ MARKETS = [("India", "india"), ("US", "us"), ("China A", "china_a"), ("Hong Kong
 MARKET_LABEL = {v: k for k, v in MARKETS}
 CURRENCY = {"india": "INR", "us": "USD", "china_a": "CNY", "hong_kong": "HKD", "crypto": "USD"}
 
+# (key, label, symbol icon, plain icon). Single-width symbols line up in every
+# terminal font. MARKETMYNA_TUI_ICONS=emoji swaps in colour emoji; =plain (or the
+# Linux text console, TERM=linux) uses ASCII.
 TABS = [
-    ("markets", "1 Markets"), ("stock", "2 Stock"), ("screener", "3 Screener"), ("watchlists", "4 Watchlists"),
-    ("portfolio", "5 Portfolio"), ("alerts", "6 Alerts"), ("reports", "7 Reports"), ("console", "8 Console"),
-    ("settings", "9 Settings"),
+    ("markets", "Markets", "↗", "~"), ("stock", "Stock", "⌕", "?"), ("screener", "Screener", "≡", "#"),
+    ("watchlists", "Watchlists", "★", "*"), ("portfolio", "Portfolio", "◔", "$"), ("alerts", "Alerts", "⚑", "!"),
+    ("reports", "Reports", "▤", "="), ("console", "Console", "❯", ">"), ("settings", "Settings", "⚙", "%"),
 ]
+EMOJI = {"markets": "📈", "stock": "🔎", "screener": "🧮", "watchlists": "⭐", "portfolio": "💼", "alerts": "🔔",
+         "reports": "📰", "console": "💻", "settings": "🔧"}
+MARKET_CODES = {"india": "IN", "us": "US", "china_a": "CN", "hong_kong": "HK", "crypto": "CR"}
+
+
+def icon_set() -> str:
+    """'symbols' (default), 'emoji' or 'plain'."""
+    import os
+
+    want = os.environ.get("MARKETMYNA_TUI_ICONS", "").strip().lower()
+    if want in ("plain", "ascii"):
+        return "plain"
+    if want == "emoji":
+        return "emoji"
+    return "plain" if os.environ.get("TERM", "") == "linux" else "symbols"
+
+
+def icon(key: str, symbol: str, plain: str, kind: str) -> str:
+    return EMOJI[key] if kind == "emoji" else plain if kind == "plain" else symbol
+
+
+def theme() -> Any:
+    """Dark terminal look: near-black panels, amber headings, cyan / green / red figures."""
+    from textual.theme import Theme
+
+    return Theme(name="marketmyna", primary="#FF9F1C", secondary="#38BDF8", accent="#FF9F1C",
+                 warning="#F59E0B", error="#EF4444", success="#22C55E", foreground="#E5E7EB",
+                 background="#0A0A0A", surface="#101010", panel="#2A2A2A", boost="#161616", dark=True)
 
 
 def work(**kwargs: Any):
@@ -89,6 +121,33 @@ def short_date(v: Any) -> str:
     return str(v or "-")[:16].replace("T", " ")
 
 
+_SIGNED = re.compile(r"(?<![\w.])([+-]\d[\d,]*(?:\.\d+)?%?)")
+_WORDS = {"bullish": "bold #22C55E", "bearish": "bold #EF4444", "neutral": "bold #F59E0B",
+          "uptrend": "#22C55E", "downtrend": "#EF4444"}
+
+
+def pretty(text: str) -> Text:
+    """Command output in the terminal look: 'Label: value' lines get a grey
+    label and cyan figures; +/- numbers are green / red; directions coloured."""
+    out = Text()
+    for i, line in enumerate(text.splitlines()):
+        if i:
+            out.append("\n")
+        head, sep, rest = line.partition(": ")
+        if sep and 0 < len(head) <= 32 and not head.startswith(("/", "http")):
+            out.append(head.upper(), style="#9CA3AF")
+            out.append("  ")
+            body = Text(rest, style="#38BDF8")
+        else:
+            body = Text(line, style="#E5E7EB")
+        for match in _SIGNED.finditer(body.plain):
+            body.stylize("#22C55E" if match.group(1).startswith("+") else "#EF4444", match.start(1), match.end(1))
+        for word, style in _WORDS.items():
+            body.highlight_words([word], style=style, case_sensitive=False)
+        out.append_text(body)
+    return out
+
+
 # ---------------------------------------------------------------- shared pane
 
 class Pane(Vertical):
@@ -122,10 +181,16 @@ class Pane(Vertical):
         self.ui(self.app.notify, message, title="MarketMyna", timeout=4)
 
 
-def table(id: str, *columns: str) -> DataTable:
+def table(id: str, *columns: str, title: str = "") -> DataTable:
     t = DataTable(id=id, cursor_type="row", zebra_stripes=True)
     t.add_columns(*columns)
+    if title:
+        t.border_title = title
     return t
+
+
+def section(text: str) -> Label:
+    return Label(f"▍{text.upper()}", classes="section")
 
 
 def picked(sel: Select) -> Any:
@@ -152,10 +217,10 @@ class MarketsPane(Pane):
                          allow_blank=False, id="period", classes="narrow")
             yield Button("Refresh (r)", id="refresh")
             yield Static("", id="mk-status", classes="status")
-        yield Label("Index board", classes="section")
-        yield table("indices", "Group", "Index", "Price", "Change", "Change %", "Day low", "Day high")
-        yield Label("Stocks to watch (Enter opens the stock)", classes="section")
-        yield table("watch", "List", "Symbol", "Name", "Price", "Change %", "Why it is on the list")
+        yield table("indices", "Group", "Index", "Price", "Change", "Change %", "Day low", "Day high",
+                    title="INDEX BOARD")
+        yield table("watch", "List", "Symbol", "Name", "Price", "Change %", "Why it is on the list",
+                    title="STOCKS TO WATCH · ENTER OPENS")
 
     def load(self) -> None:
         self.loaded = True
@@ -232,7 +297,7 @@ class StockPane(Pane):
         with Horizontal(classes="bar"):
             yield Input(placeholder="Symbol or company name, then Enter (e.g. RELIANCE, AAPL, Infosys)", id="sym")
             yield Static("", id="current", classes="status")
-        yield table("matches", "Symbol", "Name", "Market", "Type", "Exchange", "Price")
+        yield table("matches", "Symbol", "Name", "Market", "Type", "Exchange", "Price", title="MATCHES")
         with Horizontal(classes="buttons"):
             for label, key in SECTIONS:
                 yield Button(label, id=f"sec-{key}", classes="small")
@@ -240,6 +305,7 @@ class StockPane(Pane):
         yield RichLog(id="out", wrap=True, markup=False, highlight=False)
 
     def on_mount(self) -> None:
+        self.query_one("#out", RichLog).border_title = "EQUITY RESEARCH"
         self.query_one("#matches").display = False
         out = self.query_one("#out", RichLog)
         out.write("Look up any stock, ETF or fund: type a symbol or name and press Enter.\n"
@@ -329,8 +395,9 @@ class StockPane(Pane):
         except ApiError as exc:
             text, ok = str(exc), False
         self.ui(out.clear)
-        self.ui(out.write, Text(f"{label} · {symbol} · {MARKET_LABEL.get(market, market)}", style="bold"))
-        self.ui(out.write, Text(text, style="" if ok else "yellow"))
+        self.ui(out.write, Text.assemble((f"{label.upper()}  ", "bold #FF9F1C"), (symbol, "bold #E5E7EB"),
+                                         (f" · {MARKET_LABEL.get(market, market)}", "#9CA3AF")))
+        self.ui(out.write, pretty(text) if ok else Text(text, style="#F59E0B"))
 
     @work(thread=True, group="stock-watch")
     def add_to_watchlist(self) -> None:
@@ -373,7 +440,7 @@ class ScreenerPane(Pane):
             yield Select([], prompt="All listings (no screen)", id="screen", classes="wide")
             yield Static("", id="sc-status", classes="status")
         yield table("rows", "Symbol", "Name", "Sector", "Price", "Change %", "Market cap", "52w low", "52w high",
-                    "Ethical")
+                    "Ethical", title="SCREENER")
 
     def load(self) -> None:
         self.loaded = True
@@ -482,7 +549,8 @@ class WatchlistsPane(Pane):
         with Horizontal(classes="bar"):
             yield Input(placeholder="New watchlist name (Enter)", id="newlist")
             yield Button("Delete this watchlist", id="droplist", variant="error")
-        yield table("items", "Symbol", "Name", "Market", "Price", "Change %", "52w low", "52w high", "Note")
+        yield table("items", "Symbol", "Name", "Market", "Price", "Change %", "52w low", "52w high", "Note",
+                    title="WATCHLIST")
 
     def load(self) -> None:
         self.loaded = True
@@ -590,7 +658,8 @@ class PortfolioPane(Pane):
             yield Input(placeholder="New portfolio name (Enter)", id="pfnew")
             yield Button("Review (AI-free)", id="review")
         yield Static("", id="summary", classes="summary")
-        yield table("holdings", "Symbol", "Market", "Quantity", "Avg cost", "Price", "Value", "Gain", "Gain %")
+        yield table("holdings", "Symbol", "Market", "Quantity", "Avg cost", "Price", "Value", "Gain", "Gain %",
+                    title="HOLDINGS")
         with Horizontal(classes="bar"):
             yield Input(placeholder="Symbol", id="t-sym", classes="narrow")
             yield Select([("Buy", "buy"), ("Sell", "sell"), ("Dividend", "dividend")], value="buy",
@@ -599,11 +668,11 @@ class PortfolioPane(Pane):
             yield Input(placeholder="Price", id="t-price", type="number", classes="narrow")
             yield Input(placeholder="Date YYYY-MM-DD (optional)", id="t-date", classes="narrow")
             yield Button("Add transaction", id="t-add", variant="primary")
-        yield Label("Transactions (select one, then Delete transaction)", classes="section")
         with Horizontal(classes="bar"):
             yield Button("Delete transaction", id="t-del", variant="error")
             yield Button("Delete portfolio", id="pf-del", variant="error")
-        yield table("txns", "#", "Date", "Type", "Symbol", "Quantity", "Price", "Total")
+        yield table("txns", "#", "Date", "Type", "Symbol", "Quantity", "Price", "Total",
+                    title="TRANSACTION HISTORY · SELECT ONE TO DELETE")
 
     def load(self) -> None:
         self.loaded = True
@@ -760,9 +829,9 @@ class AlertsPane(Pane):
             yield Button("Check now", id="a-check")
             yield Static("Alerts are checked all day while MarketMyna runs; they go to your notification "
                          "channels (Settings in the web app).", classes="status")
-        yield table("alerts", "ID", "Symbol", "Market", "Condition", "Status", "Last value", "Triggered", "Note")
-        yield Label("Recent triggers", classes="section")
-        yield table("events", "When", "Symbol", "Message")
+        yield table("alerts", "ID", "Symbol", "Market", "Condition", "Status", "Last value", "Triggered", "Note",
+                    title="PRICE ALERTS")
+        yield table("events", "When", "Symbol", "Message", title="RECENT TRIGGERS")
 
     def load(self) -> None:
         self.loaded = True
@@ -859,8 +928,7 @@ class ReportsPane(Pane):
             yield Button("Refresh", id="r-refresh")
             yield Button("Edit schedule in browser", id="r-web")
         yield Static("", id="sched", classes="summary")
-        yield Label("Saved reports (Enter opens the full table in your browser)", classes="section")
-        yield table("reports", "Created", "Title", "Stocks")
+        yield table("reports", "Created", "Title", "Stocks", title="SAVED REPORTS · ENTER OPENS IN BROWSER")
 
     def load(self) -> None:
         self.loaded = True
@@ -961,7 +1029,9 @@ class CommandInput(Input):
 
 class ConsolePane(Pane):
     def compose(self) -> ComposeResult:
-        yield RichLog(id="log", wrap=True, markup=False, highlight=False)
+        log = RichLog(id="log", wrap=True, markup=False, highlight=False)
+        log.border_title = "COMMAND CONSOLE"
+        yield log
         yield CommandInput(placeholder="/help, /quote RELIANCE india, /market us, /ask ... (Up / Down: history)",
                            id="cmd")
 
@@ -1004,12 +1074,12 @@ class ConsolePane(Pane):
     @work(thread=True, group="console-run")
     def execute(self, text: str) -> None:
         log = self.query_one("#log", RichLog)
-        self.ui(log.write, Text(f"\n> {text}", style="bold magenta"))
+        self.ui(log.write, Text(f"\n> {text}", style="bold #FF9F1C"))
         try:
             out, ok = self.api.command(text)
         except ApiError as exc:
             out, ok = str(exc), False
-        self.ui(log.write, Text(out, style="" if ok else "yellow"))
+        self.ui(log.write, pretty(out) if ok else Text(out, style="#F59E0B"))
 
 
 # ---------------------------------------------------------------- 9 settings
@@ -1017,20 +1087,20 @@ class ConsolePane(Pane):
 class SettingsPane(Pane):
     def compose(self) -> ComposeResult:
         with VerticalScroll():
-            yield Label("AI keys (used for AI analysis, /ask and AI notes)", classes="section")
+            yield section("AI keys (AI analysis, /ask and AI notes)")
             yield Static("", id="ai-status", classes="status")
-            yield table("keys", "ID", "Provider", "Key", "Model", "Added")
+            yield table("keys", "ID", "Provider", "Key", "Model", "Added", title="AI KEYS")
             with Horizontal(classes="bar"):
                 yield Input(placeholder="Paste an AI key (provider is detected), then Enter", password=True, id="key")
                 yield Button("Remove selected key", id="key-del", variant="error")
-            yield Label("Default face", classes="section")
+            yield section("Default face")
             with Horizontal(classes="bar"):
                 yield Label("`marketmyna` with no command opens:", classes="lbl")
                 yield Select([("Web app (browser)", "web"), ("Terminal app", "tui")], allow_blank=False,
                              value="web", id="mode", classes="wide")
                 yield Button("Open web app now (w)", id="open-web")
             yield Static("", id="engine", classes="summary")
-            yield Label("Updates", classes="section")
+            yield section("Updates")
             yield Static("", id="upd", classes="summary")
             with Horizontal(classes="bar"):
                 yield Button("Check for updates", id="upd-check")
@@ -1151,39 +1221,80 @@ class SettingsPane(Pane):
 class MarketMynaTUI(App):
     TITLE = "MarketMyna"
     CSS = """
-    Screen { background: $surface; }
+    Screen { background: $background; }
+
+    /* top bar: brand, live dot, command box, market, clock */
+    #topbar { height: 3; background: #050505; border-bottom: solid #2A2A2A; }
+    #brand { width: auto; padding: 1 1 0 1; }
+    #live { width: auto; padding: 1 1 0 1; color: #22C55E; }
+    #cmdbar { width: 1fr; border: tall #2A2A2A; background: #0F0F0F; }
+    #cmdbar:focus { border: tall #FF9F1C; }
+    #market { width: 20; }
+    #clock { width: auto; padding: 1 2 0 1; color: #FF9F1C; }
+
+    /* silver side menu with icons */
+    #sidebar { width: 22; background: #C0C0C0; color: #111111; padding: 1 0; border-right: tall #8A8A8A; }
+    #sidebar > ListItem { background: #C0C0C0; color: #111111; padding: 0 1; height: 2; }
+    #sidebar > ListItem Label { padding: 0 0; }
+    #sidebar > ListItem:hover { background: #D8D8D8; }
+    #sidebar > ListItem.-highlight { background: #A6A6A6; }
+    #sidebar > ListItem.active { background: #FF9F1C; color: #000000; text-style: bold; }
+    #sidebar:focus > ListItem.-highlight { background: #8F8F8F; color: #000000; }
+    #sidebar:focus > ListItem.active { background: #FF9F1C; }
+
+    #main { width: 1fr; }
+    #pagehead { height: 1; padding: 0 1; background: #101010; color: #FF9F1C; text-style: bold; }
+
+    /* bottom status bar */
+    #statusbar { height: 1; background: #050505; color: #8A8A8A; padding: 0 1; }
+
+    /* panels */
     .bar { height: auto; padding: 0 1; }
     .bar > Input { width: 1fr; }
-    .bar > Button { margin-left: 1; }
-    .buttons { height: auto; padding: 0 1; }
-    .buttons > Button { margin-right: 1; min-width: 8; }
-    Button.small { height: 3; }
+    .bar > Button { margin: 1 0 0 1; }
+    .buttons { height: auto; padding: 1 1 0 1; }
+    .buttons > Button { margin-right: 1; }
+    /* flat one-line buttons, like a terminal's function keys */
+    Button { height: 1; min-width: 6; border: none; padding: 0 1; background: #1C1C1C; color: #E5E7EB;
+             text-style: bold; }
+    Button:hover { background: #2E2E2E; }
+    Button:focus { background: #FF9F1C 40%; text-style: bold; }
+    Button.-primary { background: #FF9F1C; color: #000000; }
+    Button.-warning { background: #3A2A00; color: #F59E0B; }
+    Button.-error { background: #2A0E0E; color: #EF4444; }
+    Button.-error:hover { background: #EF4444; color: #000000; }
     .narrow { width: 22; }
     .wide { width: 44; }
-    .lbl { padding: 1 1 0 0; }
-    .section { padding: 1 1 0 1; text-style: bold; color: $accent; }
-    .status { padding: 1 1 0 1; color: $text-muted; width: 1fr; }
-    .summary { padding: 1 1; height: auto; }
-    DataTable { height: 1fr; margin: 0 1; }
+    .lbl { padding: 1 1 0 0; color: #9CA3AF; }
+    .section { padding: 1 1 0 1; text-style: bold; color: #FF9F1C; }
+    .status { padding: 1 1 0 1; color: #9CA3AF; width: 1fr; }
+    .summary { padding: 1 1; height: auto; color: #38BDF8; }
+    DataTable { height: 1fr; margin: 1 1 0 1; border: round #2A2A2A; background: #0D0D0D;
+                border-title-color: #FF9F1C; border-title-style: bold; }
+    DataTable:focus { border: round #FF9F1C; }
+    DataTable > .datatable--header { background: #161616; color: #FF9F1C; text-style: bold; }
+    DataTable > .datatable--even-row { background: #121212; }
+    DataTable > .datatable--cursor { background: #FF9F1C 35%; }
     #indices { height: 12; }
     #matches { height: 10; }
-    #keys { height: 7; }
-    #events { height: 8; }
-    #txns { height: 10; }
-    RichLog { height: 1fr; margin: 0 1; border: round $panel; }
-    #topbar { height: auto; padding: 0 1; background: $boost; }
-    #topbar > Static { width: 1fr; padding: 1 1 0 1; }
-    #market { width: 26; }
-    #connecting { padding: 2 4; }
+    #keys { height: 8; }
+    #events { height: 9; }
+    #txns { height: 11; }
+    RichLog { height: 1fr; margin: 1 1 0 1; border: round #2A2A2A; background: #0D0D0D;
+              border-title-color: #FF9F1C; border-title-style: bold; }
+    #connecting { padding: 2 4; color: #FF9F1C; }
+    Footer { background: #050505; }
     """
 
     BINDINGS = [
         Binding("q", "quit", "Quit"),
-        Binding("w", "open_web", "Open in browser"),
-        Binding("m", "next_market", "Next market"),
+        Binding("colon", "focus_command", "Command"),
+        Binding("w", "open_web", "Browser"),
+        Binding("m", "next_market", "Market"),
         Binding("r", "refresh", "Refresh"),
-        Binding("d", "toggle_dark", "Light / dark"),
-        *[Binding(str(i + 1), f"tab('{key}')", label, show=False) for i, (key, label) in enumerate(TABS)],
+        Binding("d", "toggle_dark", "Light/dark"),
+        Binding("escape", "focus_menu", "Menu", show=False),
+        *[Binding(str(i + 1), f"tab('{key}')", label, show=False) for i, (key, label, _, _) in enumerate(TABS)],
     ]
 
     def __init__(self, host: str = "127.0.0.1", port: int = 8001, url: str | None = None) -> None:
@@ -1191,6 +1302,7 @@ class MarketMynaTUI(App):
         self.host, self.port = host, port
         self.fixed_url = url
         self.market = "india"
+        self.tab = "markets"
         self.api: Api = None  # type: ignore[assignment]
         self.server = None
         self.url = ""
@@ -1201,35 +1313,69 @@ class MarketMynaTUI(App):
 
     # -- layout
     def compose(self) -> ComposeResult:
-        yield Header(show_clock=True)
+        kind = icon_set()
         with Horizontal(id="topbar"):
+            yield Static(Text.assemble(("MARKETMYNA ", "bold #FF9F1C"), ("TERMINAL", "bold #E5E7EB")), id="brand")
+            yield Static("○ STARTING", id="live")
+            yield Input(placeholder="> Enter command: a symbol (RELIANCE, AAPL) or /quote TCS india", id="cmdbar")
             yield Select(MARKETS, value="india", allow_blank=False, id="market")
-            yield Static("Connecting...", id="engine-line")
-        yield Static("Starting the MarketMyna engine (first start can take a minute)...", id="connecting")
-        with TabbedContent(id="tabs"):
-            with TabPane(TABS[0][1], id="markets"):
-                yield MarketsPane()
-            with TabPane(TABS[1][1], id="stock"):
-                yield StockPane()
-            with TabPane(TABS[2][1], id="screener"):
-                yield ScreenerPane()
-            with TabPane(TABS[3][1], id="watchlists"):
-                yield WatchlistsPane()
-            with TabPane(TABS[4][1], id="portfolio"):
-                yield PortfolioPane()
-            with TabPane(TABS[5][1], id="alerts"):
-                yield AlertsPane()
-            with TabPane(TABS[6][1], id="reports"):
-                yield ReportsPane()
-            with TabPane(TABS[7][1], id="console"):
-                yield ConsolePane()
-            with TabPane(TABS[8][1], id="settings"):
-                yield SettingsPane()
+            yield Static("", id="clock")
+        with Horizontal(id="body"):
+            yield ListView(
+                *[ListItem(Label(f"{icon(key, sym, plain, kind)}  {i + 1} {label.upper()}"), id=f"nav-{key}",
+                           classes="active" if i == 0 else "")
+                  for i, (key, label, sym, plain) in enumerate(TABS)],
+                id="sidebar")
+            with Vertical(id="main"):
+                yield Static("", id="pagehead")
+                yield Static("Starting the MarketMyna engine (first start can take a minute)...", id="connecting")
+                with ContentSwitcher(initial="p-markets", id="tabs"):
+                    yield MarketsPane(id="p-markets")
+                    yield StockPane(id="p-stock")
+                    yield ScreenerPane(id="p-screener")
+                    yield WatchlistsPane(id="p-watchlists")
+                    yield PortfolioPane(id="p-portfolio")
+                    yield AlertsPane(id="p-alerts")
+                    yield ReportsPane(id="p-reports")
+                    yield ConsolePane(id="p-console")
+                    yield SettingsPane(id="p-settings")
+        yield Static("", id="statusbar")
         yield Footer()
 
     def on_mount(self) -> None:
+        self.register_theme(theme())
+        self.theme = "marketmyna"
         self.query_one("#tabs").display = False
+        self._head()
+        self._status("STARTING")
+        self._tick()
+        self.set_interval(1, self._tick)
         self.connect()
+
+    def _tick(self) -> None:
+        import datetime as dt
+
+        self.query_one("#clock", Static).update(dt.datetime.now().strftime("%d %b %y  %H:%M:%S").upper())
+
+    def _head(self) -> None:
+        label = next(lbl for key, lbl, _, _ in TABS if key == self.tab)
+        self.query_one("#pagehead", Static).update(
+            Text.assemble((label.upper(), "bold #FF9F1C"), "   ",
+                          (MARKET_LABEL.get(self.market, self.market).upper(), "bold #E5E7EB")))
+
+    def _status(self, state: str) -> None:
+        from marketmyna import __version__
+
+        codes = "  ".join(MARKET_CODES.values())
+        engine = ("ENGINE HERE" if self.server else "JOINED") + f" {self.url}" if self.url else "ENGINE ..."
+        left = f"v{__version__}  │  {codes}  │  {engine}  │  : command  1-9 menu  w browser"
+        colour = "#22C55E" if state == "READY" else "#F59E0B"
+        width = max(self.size.width - 2, len(left) + len(state) + 2)
+        self.query_one("#statusbar", Static).update(
+            Text.assemble(left, " " * (width - len(left) - len(state)), (state, f"bold {colour}")))
+
+    def on_resize(self) -> None:
+        self._status("READY" if self.api is not None else "STARTING")
 
     @work(thread=True, exclusive=True, group="connect")
     def connect(self) -> None:
@@ -1244,6 +1390,7 @@ class MarketMynaTUI(App):
             self.call_from_thread(self.query_one("#connecting", Static).update,
                                   Text(f"Could not start MarketMyna: {exc}\nLog: {self.log_file}\nPress q to quit.",
                                        style="red"))
+            self.call_from_thread(self._status, "ERROR")
             return
         self.url, self.server = url, server
         self.api = Api(url)
@@ -1257,9 +1404,9 @@ class MarketMynaTUI(App):
         self.sub_title = self.url
         self.query_one("#connecting").display = False
         self.query_one("#tabs").display = True
-        self.query_one("#engine-line", Static).update(
-            f"{'Engine in this terminal' if self.server else 'Joined the running app'} at {self.url}"
-            "  ·  w: same app in your browser  ·  1-9: tabs  ·  m: market")
+        self.query_one("#live", Static).update("● LIVE")
+        self._status("READY")
+        self.query_one("#sidebar", ListView).focus()
         self._load_active()
 
     def engine_text(self) -> Text:
@@ -1276,30 +1423,61 @@ class MarketMynaTUI(App):
 
     # -- navigation
     def _pane(self, tab: str) -> Pane:
-        return self.query_one(f"#{tab}", TabPane).query_one(Pane)
+        return self.query_one(f"#p-{tab}", Pane)
 
     def _load_active(self) -> None:
         if self.api is None:
             return
-        tab = self.query_one("#tabs", TabbedContent).active
-        if tab:
-            pane = self._pane(tab)
-            if not pane.loaded:
-                pane.load()
+        pane = self._pane(self.tab)
+        if not pane.loaded:
+            pane.load()
 
-    @on(TabbedContent.TabActivated)
-    def _tab_changed(self) -> None:
-        self._load_active()
+    @on(ListView.Selected, "#sidebar")
+    def _menu(self, event: ListView.Selected) -> None:
+        if event.item is not None and event.item.id:
+            self.action_tab(event.item.id.removeprefix("nav-"))
 
     def action_tab(self, tab: str) -> None:
-        if self.api is not None:
-            self.query_one("#tabs", TabbedContent).active = tab
+        self.tab = tab
+        self.query_one("#tabs", ContentSwitcher).current = f"p-{tab}"
+        menu = self.query_one("#sidebar", ListView)
+        keys = [k for k, _, _, _ in TABS]
+        for item in menu.children:
+            item.set_class(item.id == f"nav-{tab}", "active")
+        if menu.index != keys.index(tab):
+            menu.index = keys.index(tab)
+        self._head()
+        self._load_active()
+
+    def action_focus_command(self) -> None:
+        self.query_one("#cmdbar", Input).focus()
+
+    def action_focus_menu(self) -> None:
+        self.query_one("#sidebar", ListView).focus()
+
+    @on(Input.Submitted, "#cmdbar")
+    def _command_bar(self, event: Input.Submitted) -> None:
+        text = event.value.strip()
+        event.input.value = ""
+        if not text or self.api is None:
+            return
+        if text.startswith("/"):
+            self.run_console(text)
+            return
+        jump = {"MKT": "markets", "SCR": "screener", "WL": "watchlists", "PF": "portfolio", "AL": "alerts",
+                "RPT": "reports", "CON": "console", "SET": "settings"}
+        if text.upper() in jump:
+            self.action_tab(jump[text.upper()])
+            return
+        self.action_tab("stock")
+        self._pane("stock").search(text)  # type: ignore[attr-defined]
 
     @on(Select.Changed, "#market")
     def _market(self, event: Select.Changed) -> None:
         if picked(event.select) is None or event.value == self.market:
             return
         self.market = str(event.value)
+        self._head()
         if self.api is None:
             return
         for pane in self.query(Pane):
@@ -1310,22 +1488,16 @@ class MarketMynaTUI(App):
         self.query_one("#market", Select).value = values[(values.index(self.market) + 1) % len(values)]
 
     def action_refresh(self) -> None:
-        if self.api is None:
-            return
-        tab = self.query_one("#tabs", TabbedContent).active
-        if tab:
-            self._pane(tab).load()
+        if self.api is not None:
+            self._pane(self.tab).load()
 
     def open_stock(self, symbol: str, market: str) -> None:
-        self.query_one("#tabs", TabbedContent).active = "stock"
+        self.action_tab("stock")
         self._pane("stock").open(symbol, market)  # type: ignore[attr-defined]
 
     def run_console(self, text: str) -> None:
-        self.query_one("#tabs", TabbedContent).active = "console"
-        pane = self._pane("console")
-        if not pane.loaded:
-            pane.load()
-        pane.execute(text)  # type: ignore[attr-defined]
+        self.action_tab("console")
+        self._pane("console").execute(text)  # type: ignore[attr-defined]
 
     def open_web(self, path: str = "/") -> None:
         if not self.url:
@@ -1337,7 +1509,7 @@ class MarketMynaTUI(App):
         self.open_web("/")
 
     def action_toggle_dark(self) -> None:
-        self.theme = "textual-light" if self.theme != "textual-light" else "textual-dark"
+        self.theme = "textual-light" if self.theme != "textual-light" else "marketmyna"
 
     def on_worker_state_changed(self, event) -> None:
         from textual.worker import WorkerState
