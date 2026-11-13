@@ -1233,9 +1233,9 @@ class MarketMynaTUI(App):
     #clock { width: auto; padding: 1 2 0 1; color: #FF9F1C; }
 
     /* silver side menu with icons */
-    #sidebar { width: 22; background: #C0C0C0; color: #111111; padding: 1 0; border-right: tall #8A8A8A; }
-    #sidebar > ListItem { background: #C0C0C0; color: #111111; padding: 0 1; height: 2; }
-    #sidebar > ListItem Label { padding: 0 0; }
+    #sidebar { width: 8; background: #C0C0C0; color: #111111; padding: 1 0; border-right: tall #8A8A8A; }
+    #sidebar > ListItem { background: #C0C0C0; color: #111111; height: 3; }
+    #sidebar > ListItem Label { width: 100%; height: 3; content-align: center middle; text-style: bold; }
     #sidebar > ListItem:hover { background: #D8D8D8; }
     #sidebar > ListItem.-highlight { background: #A6A6A6; }
     #sidebar > ListItem.active { background: #FF9F1C; color: #000000; text-style: bold; }
@@ -1322,8 +1322,7 @@ class MarketMynaTUI(App):
             yield Static("", id="clock")
         with Horizontal(id="body"):
             yield ListView(
-                *[ListItem(Label(f"{icon(key, sym, plain, kind)}  {i + 1} {label.upper()}"), id=f"nav-{key}",
-                           classes="active" if i == 0 else "")
+                *[self._menu_item(i, key, label, icon(key, sym, plain, kind))
                   for i, (key, label, sym, plain) in enumerate(TABS)],
                 id="sidebar")
             with Vertical(id="main"):
@@ -1341,6 +1340,13 @@ class MarketMynaTUI(App):
                     yield SettingsPane(id="p-settings")
         yield Static("", id="statusbar")
         yield Footer()
+
+    @staticmethod
+    def _menu_item(i: int, key: str, label: str, glyph: str) -> ListItem:
+        """Icon only; the name shows as a tooltip and in the page title."""
+        item = ListItem(Label(glyph), id=f"nav-{key}", classes="active" if i == 0 else "")
+        item.tooltip = f"{label}  ({i + 1})"
+        return item
 
     def on_mount(self) -> None:
         self.register_theme(theme())
