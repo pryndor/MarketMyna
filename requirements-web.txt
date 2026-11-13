@@ -29,3 +29,4 @@ playwright>=1.45    # headless Chromium for Reddit / StockTwits social sentiment
 pypinyin>=0.51       # Chinese names -> pinyin when no English name exists (marketmyna/services/translate.py)
 # Security floor for an indirect dependency (aiohttp/litellm): CVE-2026-104874 fixed in 6.9.1.
 multidict>=6.9.1
+textual>=0.86        # the terminal app: marketmyna tui (marketmyna/tui/)

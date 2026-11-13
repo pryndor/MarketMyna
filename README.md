@@ -120,6 +120,21 @@ folder. Uninstalling (`pipx uninstall marketmyna`) leaves it in place.
 
 **Options:** `marketmyna --port 9000`, `marketmyna --no-browser`, `marketmyna --version`.
 
+### Web app or terminal app
+
+MarketMyna has two faces on one engine: the web app in your browser and a keyboard-driven terminal app.
+
+```bash
+marketmyna web        # the web app (what plain `marketmyna` opens unless you change it)
+marketmyna tui        # the terminal app: markets, stock lookup, screener, watchlists, portfolio, alerts, reports
+marketmyna mode tui   # make plain `marketmyna` open the terminal app (`marketmyna mode web` to undo)
+```
+
+Both use the same server and the same data in `~/.marketmyna`. If an app is already running, `marketmyna tui`
+joins it, so you can keep the web app open and use the terminal at the same time. Without one it starts the
+engine itself (its log goes to `~/.marketmyna/logs/tui-server.log`). In the terminal app, `1`-`9` switch tabs,
+`m` changes market, `r` refreshes, `w` opens the same running app in your browser and `q` quits.
+
 ## Run it from the source code
 
 To follow the latest code with `git pull`, or to change it. Runs on **Linux, macOS and Windows** (tested on all three on every change). Needs
@@ -158,7 +173,8 @@ python start.py
 ```
 
 The first start builds the frontend (about a minute), then the app opens in your browser at
-<http://127.0.0.1:8001>. Other options: `--port 9000`, `--no-browser`, `--rebuild`.
+<http://127.0.0.1:8001>. Other options: `--port 9000`, `--no-browser`, `--rebuild`; `python start.py tui` for the
+terminal app.
 
 **3. Update** (whenever you like)
 
@@ -233,6 +249,7 @@ app on Linux, Windows and macOS for every push (`.github/workflows/ci.yml`).
 | `start.py` | Starts the app from the source code (builds the frontend when needed) |
 | `marketmyna/` | The Python package: data, analysis, AI agents, scheduler, alerts, notifiers, SQLite storage |
 | `marketmyna/api/` | FastAPI app and routes; it also serves the built frontend |
+| `marketmyna/tui/` | The terminal app (Textual), a client of the same API |
 | `marketmyna/strategies/` | AI strategy playbooks |
 | `frontend/` | React + Vite + Tailwind app |
 | `tests/` | pytest suite |

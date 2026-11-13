@@ -55,7 +55,8 @@ def main(argv: list[str] | None = None) -> None:
     parser.prog = "start.py"
     parser.add_argument("--rebuild", action="store_true", help="rebuild the frontend first")
     args = parser.parse_args(argv)
-    build_frontend(args.rebuild)
+    if launcher.resolve_mode(args) == "web" or args.rebuild:
+        build_frontend(args.rebuild)  # the terminal app doesn't need the web build
     launcher.run(args)
 
 

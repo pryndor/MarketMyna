@@ -318,11 +318,25 @@ def restart_command(kind: str, argv: list[str]) -> list[str]:
     return [sys.executable, "-m", "marketmyna.launcher", *args]
 
 
+# Set by a process that can't be replaced in place: the terminal app hosting
+# the server draws on the terminal, so it closes itself and asks you to start
+# it again instead of being swapped out underneath the screen.
+RESTART_HANDLERS: list = []
+
+
 def restart(kind: str, delay: float = 1.5) -> None:
     """Start the app again with the same options. Linux / macOS replace this
     process in place (same terminal, Ctrl+C still works; the listening socket is
     closed on exec, so the port is free). Windows starts a fresh copy once this
     one has exited. A source install rebuilds the frontend on that start."""
+    if RESTART_HANDLERS:
+        def notify() -> None:
+            time.sleep(delay)
+            for handler in list(RESTART_HANDLERS):
+                handler()
+
+        threading.Thread(target=notify, name="update-restart", daemon=True).start()
+        return
     cmd = restart_command(kind, sys.argv[1:])
     cwd = str(ROOT) if kind == "source" else os.getcwd()
 

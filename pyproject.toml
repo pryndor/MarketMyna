@@ -52,6 +52,7 @@ dependencies = [
     "playwright>=1.45",
     "pypinyin>=0.51",
     "multidict>=6.9.1",
+    "textual>=0.86",
 ]
 
 [project.optional-dependencies]
