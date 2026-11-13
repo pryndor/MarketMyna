@@ -37,6 +37,12 @@ def save_mode(mode: str) -> str:
     if mode not in MODES:
         raise ValueError(f"Choose one of: {', '.join(MODES)}")
     path = _path()
+    try:  # keep the other settings in the file (the terminal app's theme)
+        data = json.loads(path.read_text(encoding="utf-8"))
+        data = data if isinstance(data, dict) else {}
+    except (OSError, ValueError):
+        data = {}
+    data["default"] = mode
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps({"default": mode}) + "\n", encoding="utf-8")
+    path.write_text(json.dumps(data) + "\n", encoding="utf-8")
     return mode

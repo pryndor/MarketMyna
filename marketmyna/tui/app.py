@@ -27,17 +27,22 @@ from textual.widgets import (
     Button,
     ContentSwitcher,
     DataTable,
+    Digits,
     Footer,
     Input,
     Label,
     ListItem,
     ListView,
+    LoadingIndicator,
     RichLog,
     Select,
+    Sparkline,
     Static,
 )
 
+from marketmyna.tui import look
 from marketmyna.tui.client import Api, ApiError
+from marketmyna.tui.look import PAL
 
 MARKETS = [("India", "india"), ("US", "us"), ("China A", "china_a"), ("Hong Kong", "hong_kong"), ("Crypto", "crypto")]
 MARKET_LABEL = {v: k for k, v in MARKETS}
@@ -72,13 +77,47 @@ def icon(key: str, symbol: str, plain: str, kind: str) -> str:
     return EMOJI[key] if kind == "emoji" else plain if kind == "plain" else symbol
 
 
-def theme() -> Any:
-    """Dark terminal look: near-black panels, amber headings, cyan / green / red figures."""
-    from textual.theme import Theme
+def saved_theme() -> str:
+    import os
 
-    return Theme(name="marketmyna", primary="#FF9F1C", secondary="#38BDF8", accent="#FF9F1C",
-                 warning="#F59E0B", error="#EF4444", success="#22C55E", foreground="#E5E7EB",
-                 background="#0A0A0A", surface="#101010", panel="#2A2A2A", boost="#161616", dark=True)
+    want = os.environ.get("MARKETMYNA_TUI_THEME", "").strip().lower()
+    if want in look.THEMES:
+        return want
+    try:
+        import json
+
+        from marketmyna.core.home import app_home
+
+        name = json.loads((app_home() / "ui.json").read_text(encoding="utf-8")).get("theme")
+    except (OSError, ValueError, AttributeError):
+        name = None
+    return name if name in look.THEMES else look.DEFAULT
+
+
+def save_theme(name: str) -> None:
+    import json
+
+    from marketmyna.core.home import app_home
+
+    path = app_home() / "ui.json"
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        data = data if isinstance(data, dict) else {}
+    except (OSError, ValueError):
+        data = {}
+    data["theme"] = name
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(data) + "\n", encoding="utf-8")
+
+
+def gradient(text: str, colours: list[str], style: str = "bold") -> Text:
+    """text with its letters shaded across colours (the boot logo)."""
+    out = Text()
+    chars = [c for c in text]
+    n = max(len(chars) - 1, 1)
+    for i, ch in enumerate(chars):
+        out.append(ch, style=f"{style} {colours[round(i / n * (len(colours) - 1))]}")
+    return out
 
 
 def work(**kwargs: Any):
@@ -113,8 +152,9 @@ def signed(v: Any, suffix: str = "%", digits: int = 2) -> Text:
         x = float(v)
     except (TypeError, ValueError):
         return Text("-", style="dim")
-    style = "green" if x > 0 else "red" if x < 0 else ""
-    return Text(f"{x:+,.{digits}f}{suffix}", style=style)
+    style = PAL["up"] if x > 0 else PAL["down"] if x < 0 else PAL["muted"]
+    arrow = "▲ " if x > 0 else "▼ " if x < 0 else ""
+    return Text(f"{arrow}{x:+,.{digits}f}{suffix}" if suffix == "%" else f"{x:+,.{digits}f}{suffix}", style=style)
 
 
 def short_date(v: Any) -> str:
@@ -122,8 +162,8 @@ def short_date(v: Any) -> str:
 
 
 _SIGNED = re.compile(r"(?<![\w.])([+-]\d[\d,]*(?:\.\d+)?%?)")
-_WORDS = {"bullish": "bold #22C55E", "bearish": "bold #EF4444", "neutral": "bold #F59E0B",
-          "uptrend": "#22C55E", "downtrend": "#EF4444"}
+_WORDS = {"bullish": ("bold", "up"), "bearish": ("bold", "down"), "neutral": ("bold", "flat"),
+          "uptrend": ("", "up"), "downtrend": ("", "down")}
 
 
 def pretty(text: str) -> Text:
@@ -135,15 +175,15 @@ def pretty(text: str) -> Text:
             out.append("\n")
         head, sep, rest = line.partition(": ")
         if sep and 0 < len(head) <= 32 and not head.startswith(("/", "http")):
-            out.append(head.upper(), style="#9CA3AF")
+            out.append(head.upper(), style=PAL["muted"])
             out.append("  ")
-            body = Text(rest, style="#38BDF8")
+            body = Text(rest, style=PAL["figure"])
         else:
-            body = Text(line, style="#E5E7EB")
+            body = Text(line, style=PAL["fg"])
         for match in _SIGNED.finditer(body.plain):
-            body.stylize("#22C55E" if match.group(1).startswith("+") else "#EF4444", match.start(1), match.end(1))
-        for word, style in _WORDS.items():
-            body.highlight_words([word], style=style, case_sensitive=False)
+            body.stylize(PAL["up"] if match.group(1).startswith("+") else PAL["down"], match.start(1), match.end(1))
+        for word, (weight, colour) in _WORDS.items():
+            body.highlight_words([word], style=f"{weight} {PAL[colour]}".strip(), case_sensitive=False)
         out.append_text(body)
     return out
 
@@ -190,7 +230,7 @@ def table(id: str, *columns: str, title: str = "") -> DataTable:
 
 
 def section(text: str) -> Label:
-    return Label(f"▍{text.upper()}", classes="section")
+    return Label(f"◢ {text.upper()}", classes="section")
 
 
 def picked(sel: Select) -> Any:
@@ -209,7 +249,43 @@ def selected_key(t: DataTable) -> str | None:
 
 # ---------------------------------------------------------------- 1 markets
 
+class IndexCard(Vertical):
+    """One headline index: name, big price, change, the day's line."""
+
+    def compose(self) -> ComposeResult:
+        yield Static("", classes="card-name")
+        yield Digits("-", classes="card-price")
+        yield Static("", classes="card-change")
+        yield Sparkline([0, 0], classes="card-spark")
+
+    def show(self, item: dict | None) -> None:
+        if not item:
+            self.display = False
+            return
+        self.display = True
+        live = "●" if item.get("open") else "○"
+        self.query_one(".card-name", Static).update(
+            Text.assemble((f"{live} ", PAL["up"] if item.get("open") else PAL["muted"]),
+                          (str(item.get("label") or item.get("key") or "").upper(), f"bold {PAL['heading']}")))
+        price = item.get("price")
+        self.query_one(".card-price", Digits).update(num(price) if price is not None else "-")
+        self.query_one(".card-change", Static).update(
+            Text.assemble(signed(item.get("change"), ""), "  ", signed(item.get("change_pct"))))
+        spark = [float(v) for v in (item.get("spark") or []) if v is not None]
+        line = self.query_one(".card-spark", Sparkline)
+        line.data = spark[-60:] if len(spark) > 1 else [0, 0]
+        self.set_class((item.get("change_pct") or 0) < 0, "down")
+
+
 class MarketsPane(Pane):
+    def on_mount(self) -> None:
+        self.set_interval(60, self._auto)
+
+    def _auto(self) -> None:
+        # Keep the board live while it is on screen.
+        if self.loaded and self.app.tab == "markets":  # type: ignore[attr-defined]
+            self.load()
+
     def compose(self) -> ComposeResult:
         with Horizontal(classes="bar"):
             yield Label("Stocks to watch:", classes="lbl")
@@ -217,6 +293,9 @@ class MarketsPane(Pane):
                          allow_blank=False, id="period", classes="narrow")
             yield Button("Refresh (r)", id="refresh")
             yield Static("", id="mk-status", classes="status")
+        with Horizontal(id="cards"):
+            for _ in range(4):
+                yield IndexCard(classes="card")
         yield table("indices", "Group", "Index", "Price", "Change", "Change %", "Day low", "Day high",
                     title="INDEX BOARD")
         yield table("watch", "List", "Symbol", "Name", "Price", "Change %", "Why it is on the list",
@@ -244,6 +323,7 @@ class MarketsPane(Pane):
             board = {"groups": []}
             self.fail(exc)
         self.ui(self._show_indices, board)
+        self.ui(self.app.set_tape, board)  # type: ignore[attr-defined]
         if market in ("india", "us", "china_a", "hong_kong"):
             try:
                 watch = self.api.get("/listings/watch", market=market, period=period)
@@ -256,6 +336,10 @@ class MarketsPane(Pane):
         self.ui(self.query_one("#mk-status", Static).update, MARKET_LABEL.get(market, market))
 
     def _show_indices(self, board: dict) -> None:
+        groups = board.get("groups", [])
+        heads = [i for i in (groups[0].get("items", []) if groups else []) if i.get("price") is not None][:4]
+        for card, item in zip(self.query(IndexCard), heads + [None] * 4):
+            card.show(item)
         t = self.query_one("#indices", DataTable)
         t.clear()
         for group in board.get("groups", []):
@@ -395,9 +479,10 @@ class StockPane(Pane):
         except ApiError as exc:
             text, ok = str(exc), False
         self.ui(out.clear)
-        self.ui(out.write, Text.assemble((f"{label.upper()}  ", "bold #FF9F1C"), (symbol, "bold #E5E7EB"),
-                                         (f" · {MARKET_LABEL.get(market, market)}", "#9CA3AF")))
-        self.ui(out.write, pretty(text) if ok else Text(text, style="#F59E0B"))
+        self.ui(out.write, Text.assemble((f"◢ {label.upper()}  ", f"bold {PAL['heading']}"),
+                                         (symbol, f"bold {PAL['fg']}"),
+                                         (f" · {MARKET_LABEL.get(market, market)}", PAL["muted"])))
+        self.ui(out.write, pretty(text) if ok else Text(text, style=PAL["flat"]))
 
     @work(thread=True, group="stock-watch")
     def add_to_watchlist(self) -> None:
@@ -954,7 +1039,7 @@ class ReportsPane(Pane):
                 else f"every {s['interval_minutes']} minutes" if s.get("interval_minutes") else "no time set")
         lines = [
             Text.assemble(("Scheduled report: ", "bold"),
-                          ("on" if s.get("enabled") else "off", "green" if s.get("enabled") else "yellow"),
+                          ("on" if s.get("enabled") else "off", PAL["up"] if s.get("enabled") else PAL["flat"]),
                           f"  ·  {when}  ·  market {MARKET_LABEL.get(s.get('market'), s.get('market'))}"),
             Text(f"Stocks: {', '.join(s.get('symbols') or []) or 'none chosen'}"),
             Text(f"Last run: {short_date(s.get('last_run_at'))}  {s.get('last_run_status') or ''}  "
@@ -1057,8 +1142,8 @@ class ConsolePane(Pane):
         for c in cmds:
             if c["group"] != group:
                 group = c["group"]
-                self.ui(log.write, Text(f"\n{group}", style="bold cyan"))
-            self.ui(log.write, Text.assemble((f"  {c['usage']:<44}", "green"), c["description"]))
+                self.ui(log.write, Text(f"\n{group}", style=f"bold {PAL['heading']}"))
+            self.ui(log.write, Text.assemble((f"  {c['usage']:<44}", PAL["figure"]), (c["description"], PAL["muted"])))
 
     @on(Input.Submitted, "#cmd")
     def _submit(self, event: Input.Submitted) -> None:
@@ -1074,12 +1159,12 @@ class ConsolePane(Pane):
     @work(thread=True, group="console-run")
     def execute(self, text: str) -> None:
         log = self.query_one("#log", RichLog)
-        self.ui(log.write, Text(f"\n> {text}", style="bold #FF9F1C"))
+        self.ui(log.write, Text(f"\n› {text}", style=f"bold {PAL['heading']}"))
         try:
             out, ok = self.api.command(text)
         except ApiError as exc:
             out, ok = str(exc), False
-        self.ui(log.write, pretty(out) if ok else Text(out, style="#F59E0B"))
+        self.ui(log.write, pretty(out) if ok else Text(out, style=PAL["flat"]))
 
 
 # ---------------------------------------------------------------- 9 settings
@@ -1141,7 +1226,7 @@ class SettingsPane(Pane):
         self.query_one("#ai-status", Static).update(
             Text("AI is ready." if ai.get("configured") else "No AI key yet: paste one below. "
                  f"Providers: {', '.join(keys.get('providers', []))}.",
-                 style="green" if ai.get("configured") else "yellow"))
+                 style=PAL["up"] if ai.get("configured") else PAL["flat"]))
         t = self.query_one("#keys", DataTable)
         t.clear()
         for k in keys.get("keys", []):
@@ -1150,7 +1235,7 @@ class SettingsPane(Pane):
 
     def _updates(self, u: dict) -> None:
         if u.get("error"):
-            self.query_one("#upd", Static).update(Text(f"Update check failed: {u['error']}", style="yellow"))
+            self.query_one("#upd", Static).update(Text(f"Update check failed: {u['error']}", style=PAL["flat"]))
             return
         latest, current = u.get("latest"), u.get("current")
         newer = bool(latest and current and latest != current and u.get("update_available", True))
@@ -1162,7 +1247,7 @@ class SettingsPane(Pane):
                    f"{dt.datetime.fromtimestamp(u['checked_at']).strftime('%Y-%m-%d %H:%M')}")
         if u.get("commands"):
             msg += "\nBy hand: " + "  &&  ".join(u["commands"])
-        self.query_one("#upd", Static).update(Text(msg, style="green" if newer else ""))
+        self.query_one("#upd", Static).update(Text(msg, style=PAL["up"] if newer else PAL["figure"]))
 
     @on(Input.Submitted, "#key")
     def _add_key(self, event: Input.Submitted) -> None:
@@ -1218,35 +1303,79 @@ class SettingsPane(Pane):
 
 # ---------------------------------------------------------------- the app
 
+LOGO_FONT = {
+    "M": ["█▄ ▄█", "█ ▀ █", "▀   ▀"], "A": ["▄▀▀▄", "█▀▀█", "▀  ▀"], "R": ["█▀▀▄", "█▀▀▄", "▀  ▀"],
+    "K": ["█ ▄▀", "█▀▄ ", "▀  ▀"], "E": ["█▀▀▀", "█▀▀ ", "▀▀▀▀"], "T": ["▀█▀", " █ ", " ▀ "],
+    "Y": ["█ █", "▀█▀", " ▀ "], "N": ["█▄ █", "█ ▀█", "▀  ▀"],
+}
+
+
+def logo(word: str = "MARKETMYNA") -> Text:
+    """The boot logo in block letters, shaded left to right."""
+    rows = ["  ".join(LOGO_FONT[ch][r] for ch in word) for r in range(3)]
+    colours = [PAL["heading"], PAL["accent"], PAL["brand2"]]
+    out = Text()
+    for r, row in enumerate(rows):
+        if r:
+            out.append("\n")
+        out.append_text(gradient(row, colours))
+    return out
+
+
 class MarketMynaTUI(App):
     TITLE = "MarketMyna"
     CSS = """
     Screen { background: $background; }
 
     /* top bar: brand, live dot, command box, market, clock */
-    #topbar { height: 3; background: #050505; border-bottom: solid #2A2A2A; }
+    #topbar { height: 3; background: $bar-bg; }
     #brand { width: auto; padding: 1 1 0 1; }
-    #live { width: auto; padding: 1 1 0 1; color: #22C55E; }
-    #cmdbar { width: 1fr; border: tall #2A2A2A; background: #0F0F0F; }
-    #cmdbar:focus { border: tall #FF9F1C; }
+    #live { width: auto; padding: 1 1 0 1; color: $success; text-style: bold; }
+    #cmdbar { width: 1fr; border: round $line; background: $panel-bg; }
+    #cmdbar:focus { border: round $glow; }
     #market { width: 20; }
-    #clock { width: auto; padding: 1 2 0 1; color: #FF9F1C; }
+    #market > SelectCurrent { border: round $line; background: $panel-bg; }
+    #clock { width: auto; padding: 1 2 0 1; color: $heading; text-style: bold; }
+    #tape { height: 1; background: $tape-bg; color: $muted; border-top: none; }
 
-    /* silver side menu with icons */
-    #sidebar { width: 8; background: #C0C0C0; color: #111111; padding: 1 0; border-right: tall #8A8A8A; }
-    #sidebar > ListItem { background: #C0C0C0; color: #111111; height: 3; }
+    /* icon rail */
+    #rail { width: 8; background: $rail-bg; border-right: tall $rail-edge; }
+    #rail-logo { height: 3; content-align: center middle; background: $bar-bg; color: $glow; text-style: bold; }
+    #sidebar { background: $rail-bg; color: $rail-fg; padding: 1 0; height: 1fr; }
+    #sidebar > ListItem { background: $rail-bg; color: $rail-fg; height: 3; }
     #sidebar > ListItem Label { width: 100%; height: 3; content-align: center middle; text-style: bold; }
-    #sidebar > ListItem:hover { background: #D8D8D8; }
-    #sidebar > ListItem.-highlight { background: #A6A6A6; }
-    #sidebar > ListItem.active { background: #FF9F1C; color: #000000; text-style: bold; }
-    #sidebar:focus > ListItem.-highlight { background: #8F8F8F; color: #000000; }
-    #sidebar:focus > ListItem.active { background: #FF9F1C; }
+    #sidebar > ListItem:hover { background: $rail-hover; }
+    #sidebar > ListItem.-highlight { background: $rail-hover; }
+    #sidebar > ListItem.active { background: $rail-active-bg; color: $rail-active-fg; }
+    #sidebar:focus > ListItem.-highlight { background: $rail-hover; color: $rail-fg; }
+    #sidebar:focus > ListItem.active { background: $rail-active-bg; color: $rail-active-fg; }
 
     #main { width: 1fr; }
-    #pagehead { height: 1; padding: 0 1; background: #101010; color: #FF9F1C; text-style: bold; }
+    #pagehead { height: 1; padding: 0 1; background: $boost; }
+
+    /* boot screen */
+    #boot { align: center middle; height: 1fr; }
+    #boot > Static { width: auto; height: auto; }
+    #boot-logo { margin-bottom: 1; }
+    #boot-sub { color: $muted; margin-bottom: 1; }
+    #boot LoadingIndicator { width: 30; height: 1; color: $glow; }
+    #connecting { color: $muted; margin-top: 1; }
 
     /* bottom status bar */
-    #statusbar { height: 1; background: #050505; color: #8A8A8A; padding: 0 1; }
+    #statusbar { height: 1; background: $bar-bg; color: $muted; padding: 0 1; }
+
+    /* index cards */
+    #cards { height: 10; padding: 0 0 0 1; }
+    .card { width: 1fr; height: 9; margin: 1 1 0 0; border: round $line; background: $panel-bg; padding: 0 1; }
+    .card:hover { border: round $glow; }
+    .card-name { height: 1; }
+    .card-price { height: 3; color: $foreground; }
+    .card-change { height: 1; }
+    .card-spark { height: 2; margin-top: 0; }
+    .card Sparkline > .sparkline--max-color { color: $success; }
+    .card Sparkline > .sparkline--min-color { color: $success 25%; }
+    .card.down Sparkline > .sparkline--max-color { color: $error; }
+    .card.down Sparkline > .sparkline--min-color { color: $error 25%; }
 
     /* panels */
     .bar { height: auto; padding: 0 1; }
@@ -1254,36 +1383,42 @@ class MarketMynaTUI(App):
     .bar > Button { margin: 1 0 0 1; }
     .buttons { height: auto; padding: 1 1 0 1; }
     .buttons > Button { margin-right: 1; }
+    Input { border: round $line; background: $panel-bg; }
+    Input:focus { border: round $glow; }
+    Select > SelectCurrent { border: round $line; background: $panel-bg; }
+    Select:focus > SelectCurrent { border: round $glow; }
     /* flat one-line buttons, like a terminal's function keys */
-    Button { height: 1; min-width: 6; border: none; padding: 0 1; background: #1C1C1C; color: #E5E7EB;
+    Button { height: 1; min-width: 6; border: none; padding: 0 1; background: $boost; color: $foreground;
              text-style: bold; }
-    Button:hover { background: #2E2E2E; }
-    Button:focus { background: #FF9F1C 40%; text-style: bold; }
-    Button.-primary { background: #FF9F1C; color: #000000; }
-    Button.-warning { background: #3A2A00; color: #F59E0B; }
-    Button.-error { background: #2A0E0E; color: #EF4444; }
-    Button.-error:hover { background: #EF4444; color: #000000; }
+    Button:hover { background: $primary 25%; }
+    Button:focus { background: $primary 45%; text-style: bold; }
+    Button.-primary { background: $primary; color: $background; }
+    Button.-warning { background: $warning 20%; color: $warning; }
+    Button.-error { background: $error 15%; color: $error; }
+    Button.-error:hover { background: $error; color: $background; }
     .narrow { width: 22; }
     .wide { width: 44; }
-    .lbl { padding: 1 1 0 0; color: #9CA3AF; }
-    .section { padding: 1 1 0 1; text-style: bold; color: #FF9F1C; }
-    .status { padding: 1 1 0 1; color: #9CA3AF; width: 1fr; }
-    .summary { padding: 1 1; height: auto; color: #38BDF8; }
-    DataTable { height: 1fr; margin: 1 1 0 1; border: round #2A2A2A; background: #0D0D0D;
-                border-title-color: #FF9F1C; border-title-style: bold; }
-    DataTable:focus { border: round #FF9F1C; }
-    DataTable > .datatable--header { background: #161616; color: #FF9F1C; text-style: bold; }
-    DataTable > .datatable--even-row { background: #121212; }
-    DataTable > .datatable--cursor { background: #FF9F1C 35%; }
+    .lbl { padding: 1 1 0 0; color: $muted; }
+    .section { padding: 1 1 0 1; text-style: bold; color: $heading; }
+    .status { padding: 1 1 0 1; color: $muted; width: 1fr; }
+    .summary { padding: 1 1; height: auto; color: $figure; }
+    DataTable { height: 1fr; margin: 1 1 0 1; border: round $line; background: $panel-bg;
+                border-title-color: $heading; border-title-style: bold; scrollbar-size-vertical: 1; }
+    DataTable:focus { border: round $glow; }
+    DataTable > .datatable--header { background: $boost; color: $heading; text-style: bold; }
+    DataTable > .datatable--even-row { background: $row-even; }
+    DataTable > .datatable--cursor { background: $primary 30%; }
+    DataTable > .datatable--hover { background: $primary 12%; }
     #indices { height: 12; }
     #matches { height: 10; }
     #keys { height: 8; }
     #events { height: 9; }
     #txns { height: 11; }
-    RichLog { height: 1fr; margin: 1 1 0 1; border: round #2A2A2A; background: #0D0D0D;
-              border-title-color: #FF9F1C; border-title-style: bold; }
-    #connecting { padding: 2 4; color: #FF9F1C; }
-    Footer { background: #050505; }
+    RichLog { height: 1fr; margin: 1 1 0 1; border: round $line; background: $panel-bg; padding: 0 1;
+              border-title-color: $heading; border-title-style: bold; scrollbar-size-vertical: 1; }
+    RichLog:focus { border: round $glow; }
+    Footer { background: $bar-bg; }
+    Footer .footer-key--key { color: $heading; background: $bar-bg; }
     """
 
     BINDINGS = [
@@ -1292,7 +1427,7 @@ class MarketMynaTUI(App):
         Binding("w", "open_web", "Browser"),
         Binding("m", "next_market", "Market"),
         Binding("r", "refresh", "Refresh"),
-        Binding("d", "toggle_dark", "Light/dark"),
+        Binding("t", "cycle_theme", "Theme"),
         Binding("escape", "focus_menu", "Menu", show=False),
         *[Binding(str(i + 1), f"tab('{key}')", label, show=False) for i, (key, label, _, _) in enumerate(TABS)],
     ]
@@ -1307,27 +1442,44 @@ class MarketMynaTUI(App):
         self.server = None
         self.url = ""
         self.exit_message = ""
+        self.tape_text = Text()
+        self.tape_pos = 0
         from marketmyna.core.home import app_home
 
         self.log_file = app_home() / "logs" / "tui-server.log"
+        self.look = saved_theme()
+        for name in look.THEMES:
+            self.register_theme(look.textual_theme(name))
+        self.theme = look.use(self.look)
+
+    def get_theme_variable_defaults(self) -> dict[str, str]:
+        # Our own CSS variables, so any theme (even a built-in one) can draw the app.
+        return dict(look.THEMES[look.DEFAULT]["vars"])
 
     # -- layout
     def compose(self) -> ComposeResult:
         kind = icon_set()
         with Horizontal(id="topbar"):
-            yield Static(Text.assemble(("MARKETMYNA ", "bold #FF9F1C"), ("TERMINAL", "bold #E5E7EB")), id="brand")
-            yield Static("○ STARTING", id="live")
-            yield Input(placeholder="> Enter command: a symbol (RELIANCE, AAPL) or /quote TCS india", id="cmdbar")
+            yield Static("", id="brand")
+            yield Static("○ BOOT", id="live")
+            yield Input(placeholder="›  symbol (RELIANCE, AAPL), /command, or PF SCR WL AL", id="cmdbar")
             yield Select(MARKETS, value="india", allow_blank=False, id="market")
             yield Static("", id="clock")
+        yield Static("", id="tape")
         with Horizontal(id="body"):
-            yield ListView(
-                *[self._menu_item(i, key, label, icon(key, sym, plain, kind))
-                  for i, (key, label, sym, plain) in enumerate(TABS)],
-                id="sidebar")
+            with Vertical(id="rail"):
+                yield Static("◆", id="rail-logo")
+                yield ListView(
+                    *[self._menu_item(i, key, label, icon(key, sym, plain, kind))
+                      for i, (key, label, sym, plain) in enumerate(TABS)],
+                    id="sidebar")
             with Vertical(id="main"):
                 yield Static("", id="pagehead")
-                yield Static("Starting the MarketMyna engine (first start can take a minute)...", id="connecting")
+                with Vertical(id="boot"):
+                    yield Static("", id="boot-logo")
+                    yield Static("", id="boot-sub")
+                    yield LoadingIndicator()
+                    yield Static("Starting the engine: market data, scheduler, alerts...", id="connecting")
                 with ContentSwitcher(initial="p-markets", id="tabs"):
                     yield MarketsPane(id="p-markets")
                     yield StockPane(id="p-stock")
@@ -1349,39 +1501,93 @@ class MarketMynaTUI(App):
         return item
 
     def on_mount(self) -> None:
-        self.register_theme(theme())
-        self.theme = "marketmyna"
         self.query_one("#tabs").display = False
-        self._head()
-        self._status("STARTING")
+        self._paint()
         self._tick()
         self.set_interval(1, self._tick)
+        self.set_interval(0.12, self._scroll_tape)
+        self.set_interval(60, self._tape_refresh)
         self.connect()
+
+    def _paint(self) -> None:
+        """Text drawn in Python follows the theme: redraw it after a theme change."""
+        self.query_one("#brand", Static).update(
+            Text.assemble(("◆ ", PAL["brand2"]), gradient("MARKETMYNA", [PAL["heading"], PAL["accent"]]),
+                          (" TERMINAL", f"bold {PAL['muted']}")))
+        self.query_one("#boot-logo", Static).update(logo())
+        self.query_one("#boot-sub", Static).update(
+            Text("M A R K E T S   ·   R E S E A R C H   ·   T E R M I N A L", style=PAL["muted"]))
+        self._head()
+        self._status("READY" if self.api is not None else "STARTING")
+        if not self.tape_text.plain:
+            self.tape_text = Text("  ◆ MARKETMYNA  ·  bullish / neutral / bearish, never buy or sell calls  ",
+                                  style=PAL["muted"])
 
     def _tick(self) -> None:
         import datetime as dt
 
-        self.query_one("#clock", Static).update(dt.datetime.now().strftime("%d %b %y  %H:%M:%S").upper())
+        for clock in self.query("#clock"):  # empty while the app is closing
+            clock.update(dt.datetime.now().strftime("%d %b %y  %H:%M:%S").upper())
 
     def _head(self) -> None:
         label = next(lbl for key, lbl, _, _ in TABS if key == self.tab)
         self.query_one("#pagehead", Static).update(
-            Text.assemble((label.upper(), "bold #FF9F1C"), "   ",
-                          (MARKET_LABEL.get(self.market, self.market).upper(), "bold #E5E7EB")))
+            Text.assemble(("◢ ", PAL["heading"]), (label.upper(), f"bold {PAL['heading']}"), ("  ›  ", PAL["muted"]),
+                          (MARKET_LABEL.get(self.market, self.market).upper(), f"bold {PAL['fg']}")))
 
     def _status(self, state: str) -> None:
         from marketmyna import __version__
 
         codes = "  ".join(MARKET_CODES.values())
         engine = ("ENGINE HERE" if self.server else "JOINED") + f" {self.url}" if self.url else "ENGINE ..."
-        left = f"v{__version__}  │  {codes}  │  {engine}  │  : command  1-9 menu  w browser"
-        colour = "#22C55E" if state == "READY" else "#F59E0B"
-        width = max(self.size.width - 2, len(left) + len(state) + 2)
+        left = f"v{__version__}  │  {codes}  │  {engine}  │  theme {self.look}  │  : command  1-9 menu  t theme"
+        colour = PAL["up"] if state == "READY" else PAL["flat"]
+        width = max(self.size.width - 2, len(left) + len(state) + 4)
         self.query_one("#statusbar", Static).update(
-            Text.assemble(left, " " * (width - len(left) - len(state)), (state, f"bold {colour}")))
+            Text.assemble(left, " " * (width - len(left) - len(state) - 2), ("● ", colour), (state, f"bold {colour}")))
 
     def on_resize(self) -> None:
         self._status("READY" if self.api is not None else "STARTING")
+
+    # -- ticker tape
+    def set_tape(self, board: dict) -> None:
+        parts = Text()
+        for group in board.get("groups", []):
+            for item in group.get("items", []):
+                if item.get("price") is None:
+                    continue
+                pct = item.get("change_pct") or 0
+                colour = PAL["up"] if pct > 0 else PAL["down"] if pct < 0 else PAL["muted"]
+                parts.append(f"  {str(item.get('label') or item.get('key')).upper()} ", style=f"bold {PAL['fg']}")
+                parts.append(num(item.get("price")) + "  ", style=PAL["figure"])
+                parts.append(f"{'▲' if pct > 0 else '▼' if pct < 0 else '■'} {pct:+.2f}%", style=colour)
+                parts.append("   ◆", style=PAL["muted"])
+        if parts.plain:
+            self.tape_text = parts
+
+    def _scroll_tape(self) -> None:
+        text = self.tape_text
+        if not text.plain:
+            return
+        width = max(self.size.width, 1)
+        loop = text.copy()
+        while len(loop.plain) < width + len(text.plain):
+            loop.append_text(text)
+        self.tape_pos = (self.tape_pos + 1) % len(text.plain)
+        for tape in self.query("#tape"):  # empty while the app is closing
+            tape.update(loop[self.tape_pos:self.tape_pos + width])
+
+    def _tape_refresh(self) -> None:
+        if self.api is not None and self.tab != "markets":  # the Markets page refreshes it itself
+            self.fetch_tape(self.market)
+
+    @work(thread=True, exclusive=True, group="tape")
+    def fetch_tape(self, market: str) -> None:
+        try:
+            board = self.api.get("/macro/indices", market=market)
+        except ApiError:
+            return
+        self.call_from_thread(self.set_tape, board)
 
     @work(thread=True, exclusive=True, group="connect")
     def connect(self) -> None:
@@ -1395,7 +1601,7 @@ class MarketMynaTUI(App):
         except Exception as exc:  # noqa: BLE001 - shown on screen
             self.call_from_thread(self.query_one("#connecting", Static).update,
                                   Text(f"Could not start MarketMyna: {exc}\nLog: {self.log_file}\nPress q to quit.",
-                                       style="red"))
+                                       style=PAL["down"]))
             self.call_from_thread(self._status, "ERROR")
             return
         self.url, self.server = url, server
@@ -1408,7 +1614,7 @@ class MarketMynaTUI(App):
 
     def _connected(self) -> None:
         self.sub_title = self.url
-        self.query_one("#connecting").display = False
+        self.query_one("#boot").display = False
         self.query_one("#tabs").display = True
         self.query_one("#live", Static).update("● LIVE")
         self._status("READY")
@@ -1514,8 +1720,17 @@ class MarketMynaTUI(App):
     def action_open_web(self) -> None:
         self.open_web("/")
 
-    def action_toggle_dark(self) -> None:
-        self.theme = "textual-light" if self.theme != "textual-light" else "marketmyna"
+    def action_cycle_theme(self) -> None:
+        self.look = look.ORDER[(look.ORDER.index(self.look) + 1) % len(look.ORDER)]
+        self.theme = look.use(self.look)
+        save_theme(self.look)
+        self.tape_text = Text()
+        self._paint()
+        for card in self.query(IndexCard):
+            card.display = False
+        if self.api is not None:
+            self._pane(self.tab).load()
+        self.notify(f"Theme: {self.look}  (t for the next one)", title="MarketMyna", timeout=3)
 
     def on_worker_state_changed(self, event) -> None:
         from textual.worker import WorkerState

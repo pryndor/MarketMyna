@@ -27,6 +27,9 @@ def test_save_mode_round_trip(home):
     ui_mode.save_mode("tui")
     assert json.loads((home / "ui.json").read_text()) == {"default": "tui"}
     assert ui_mode.default_mode() == "tui"
+    (home / "ui.json").write_text('{"default": "tui", "theme": "amber"}')
+    ui_mode.save_mode("web")  # keeps the terminal app's theme
+    assert json.loads((home / "ui.json").read_text()) == {"default": "web", "theme": "amber"}
 
 
 def test_save_mode_rejects_unknown(home):
@@ -179,3 +182,39 @@ def test_no_buy_sell_words_in_tui_text():
     text = Path(tui.__file__).read_text(encoding="utf-8").lower()
     for word in ("target price", "stop loss", "stop-loss", "strong buy", "buy signal", "sell signal"):
         assert word not in text
+
+
+def test_themes_save_and_cycle(home):
+    pytest.importorskip("textual")
+    from marketmyna.tui import app as tui, look
+
+    assert tui.saved_theme() == look.DEFAULT
+    tui.save_theme("silver")
+    assert tui.saved_theme() == "silver"
+    assert ui_mode.saved_mode() == "web"  # the theme doesn't disturb the default face
+    for name in look.THEMES:
+        assert look.use(name) == f"marketmyna-{name}"
+        assert set(look.PAL) >= {"up", "down", "flat", "heading", "figure", "muted", "fg"}
+    look.use(look.DEFAULT)
+
+
+def test_index_card_and_tape(monkeypatch, home):
+    pytest.importorskip("textual")
+    from marketmyna.tui import app as tui
+
+    monkeypatch.setattr(tui, "Api", FakeApi)
+
+    async def go():
+        app = tui.MarketMynaTUI(url="http://127.0.0.1:1")
+        async with app.run_test(size=(140, 45)) as pilot:
+            for _ in range(100):
+                await pilot.pause(0.05)
+                if "NIFTY 50" in app.tape_text.plain:
+                    break
+            assert "NIFTY 50" in app.tape_text.plain
+            card = app.query(tui.IndexCard).first()
+            assert card.display
+            await pilot.press("t")
+            assert app.look != tui.look.DEFAULT
+
+    asyncio.run(go())
